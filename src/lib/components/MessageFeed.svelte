@@ -2,12 +2,13 @@
   import { filteredMessages, messagesStore, unreadCount } from '$lib/stores/messages';
   import MessageCard from './MessageCard.svelte';
   import type { FilterType } from '$lib/stores/messages';
-  import { onMount, afterUpdate } from 'svelte';
+  import { onMount, afterUpdate, onDestroy } from 'svelte';
   import { tick } from 'svelte';
   
   let filter: FilterType = 'all';
   let messageContainer: HTMLDivElement;
   let previousMessageCount = 0;
+  let focusHandler: (() => void) | null = null;
   
   const filterOptions: { value: FilterType; label: string; color?: string; isDM?: boolean }[] = [
     // Channel messages
@@ -25,6 +26,8 @@
   function setFilter(newFilter: FilterType) {
     filter = newFilter;
     messagesStore.setFilter(newFilter);
+    // Mark messages as read when switching filters if window is focused
+    setTimeout(() => markVisibleMessagesAsRead(), 100);
   }
   
   function getUnreadCount(filterValue: FilterType): number {
@@ -56,8 +59,45 @@
     previousMessageCount = $filteredMessages.length;
   });
   
+  function markVisibleMessagesAsRead() {
+    if (document.hasFocus() && !document.hidden) {
+      console.log(`Window focused - marking ${filter} messages as read`);
+      
+      // For now, we'll mark messages based on the current filter view
+      // This matches the user's expectation that viewing messages marks them as read
+      const visibleMessageIds = $filteredMessages
+        .filter(msg => !msg.isRead)
+        .map(msg => msg.id);
+      
+      // Mark each visible message as read
+      visibleMessageIds.forEach(id => messagesStore.markAsRead(id));
+    }
+  }
+  
   onMount(() => {
     scrollToBottom();
+    
+    // Create focus handler
+    focusHandler = () => markVisibleMessagesAsRead();
+    
+    // Add event listeners
+    window.addEventListener('focus', focusHandler);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        markVisibleMessagesAsRead();
+      }
+    });
+    
+    // Mark as read on initial mount if window is focused
+    markVisibleMessagesAsRead();
+    
+    // Cleanup
+    return () => {
+      if (focusHandler) {
+        window.removeEventListener('focus', focusHandler);
+      }
+      document.removeEventListener('visibilitychange', markVisibleMessagesAsRead);
+    };
   });
 </script>
 
