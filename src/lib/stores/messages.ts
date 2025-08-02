@@ -120,18 +120,33 @@ function createMessagesStore() {
     subscribe,
     
     addMessage: (message: Omit<Message, 'id' | 'timestamp' | 'isRead'>) => {
-      update(state => ({
-        ...state,
-        messages: [
-          ...state.messages,
-          {
-            ...message,
-            id: `${message.platform}-${Date.now()}-${Math.random()}`,
-            timestamp: new Date(),
-            isRead: false
-          }
-        ].slice(-500) // Keep last 500 messages
-      }));
+      console.log('=== messagesStore.addMessage called ===');
+      console.log('Platform:', message.platform);
+      console.log('Author:', message.author);
+      console.log('Content:', message.content);
+      console.log('Is DM:', message.isDM);
+      console.log('Channel Name:', message.channelName);
+      console.log('Channel ID:', message.channelId);
+      
+      update(state => {
+        const newMessage = {
+          ...message,
+          id: `${message.platform}-${Date.now()}-${Math.random()}`,
+          timestamp: new Date(),
+          isRead: false
+        };
+        
+        console.log('Current messages count:', state.messages.length);
+        console.log('Current filter:', state.filter);
+        
+        return {
+          ...state,
+          messages: [
+            ...state.messages,
+            newMessage
+          ].slice(-500) // Keep last 500 messages
+        };
+      });
     },
     
     markAsRead: (messageId: string) => {

@@ -111,9 +111,19 @@ export class DiscordService {
       case 'READY':
         this.sessionId = payload.d.session_id;
         connectionsStore.setConnected('discord');
+        console.log('=== Discord READY Event ===');
         console.log('Discord connected as:', payload.d.user.username);
-        console.log('Discord guilds:', payload.d.guilds?.length || 0);
         console.log('Discord bot ID:', payload.d.user.id);
+        console.log('Discord guilds:', payload.d.guilds?.length || 0);
+        console.log('Session ID:', this.sessionId);
+        
+        // Log guild details
+        if (payload.d.guilds && payload.d.guilds.length > 0) {
+          console.log('Guild details:');
+          payload.d.guilds.forEach((guild: any) => {
+            console.log(`  - ${guild.name || 'Unavailable'} (${guild.id}) - Unavailable: ${guild.unavailable || false}`);
+          });
+        }
         
         if (!payload.d.guilds || payload.d.guilds.length === 0) {
           console.log('⚠️ Discord bot is not in any servers!');
@@ -167,7 +177,7 @@ export class DiscordService {
         break;
         
       case 'MESSAGE_CREATE':
-        console.log('Discord MESSAGE_CREATE event received');
+        console.log('=== Discord MESSAGE_CREATE event received ===');
         console.log('Message from:', payload.d.author.username, 'in channel:', payload.d.channel_id);
         console.log('Guild ID:', payload.d.guild_id || 'DM');
         console.log('Is bot:', payload.d.author.bot);
@@ -175,6 +185,7 @@ export class DiscordService {
         console.log('Embeds:', payload.d.embeds?.length || 0);
         console.log('Stickers:', payload.d.sticker_items?.length || 0);
         console.log('Attachments:', payload.d.attachments?.length || 0);
+        console.log('Channel filter active:', this.channelFilter.length > 0 ? `Yes (${this.channelFilter.join(', ')})` : 'No');
         if (payload.d.sticker_items?.length > 0) {
           console.log('Full sticker payload:', JSON.stringify({
             sticker_items: payload.d.sticker_items,
@@ -329,8 +340,11 @@ export class DiscordService {
           }
         }
         
-        console.log('Adding message to store:', displayContent);
+        console.log('=== Adding message to store ===');
+        console.log('Display content:', displayContent);
         console.log('Message type:', messageType);
+        console.log('Channel name:', channelName);
+        console.log('Is DM:', !payload.d.guild_id);
         console.log('Stickers:', stickers?.length || 0);
         console.log('Custom emojis:', customEmojis.length);
         console.log('Attachments:', attachments?.length || 0);

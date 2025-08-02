@@ -38,8 +38,22 @@
   function setFilter(newFilter: FilterType) {
     filter = newFilter;
     messagesStore.setFilter(newFilter);
+    console.log('Filter changed to:', newFilter);
     // Don't automatically mark as read when switching filters
     // Let the user see the unread badges first
+  }
+  
+  // Log initial filter and messages
+  $: {
+    console.log('=== MessageFeed State ===');
+    console.log('Active filter:', filter);
+    console.log('Filtered messages count:', $filteredMessages.length);
+    console.log('All messages sample:', $filteredMessages.slice(0, 3).map(m => ({
+      platform: m.platform,
+      isDM: m.isDM,
+      author: m.author,
+      content: m.content.substring(0, 50)
+    })));
   }
   
   async function scrollToBottom() {
