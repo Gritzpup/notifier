@@ -26,8 +26,8 @@
   function setFilter(newFilter: FilterType) {
     filter = newFilter;
     messagesStore.setFilter(newFilter);
-    // Mark messages as read when switching filters if window is focused
-    setTimeout(() => markVisibleMessagesAsRead(), 100);
+    // Don't automatically mark as read when switching filters
+    // Let the user see the unread badges first
   }
   
   function getUnreadCount(filterValue: FilterType): number {
@@ -77,26 +77,43 @@
   onMount(() => {
     scrollToBottom();
     
-    // Create focus handler
-    focusHandler = () => markVisibleMessagesAsRead();
+    let wasHidden = document.hidden;
+    let wasFocused = document.hasFocus();
+    
+    // Create focus handler that only triggers when window GAINS focus
+    focusHandler = () => {
+      if (!wasFocused && document.hasFocus()) {
+        console.log('Window gained focus - marking messages as read');
+        // Small delay to ensure UI has updated
+        setTimeout(() => markVisibleMessagesAsRead(), 300);
+      }
+      wasFocused = document.hasFocus();
+    };
+    
+    // Handle visibility changes (tab switching)
+    const visibilityHandler = () => {
+      if (wasHidden && !document.hidden) {
+        console.log('Tab became visible - marking messages as read');
+        // Small delay to ensure UI has updated
+        setTimeout(() => markVisibleMessagesAsRead(), 300);
+      }
+      wasHidden = document.hidden;
+    };
     
     // Add event listeners
     window.addEventListener('focus', focusHandler);
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        markVisibleMessagesAsRead();
-      }
-    });
+    window.addEventListener('blur', () => { wasFocused = false; });
+    document.addEventListener('visibilitychange', visibilityHandler);
     
-    // Mark as read on initial mount if window is focused
-    markVisibleMessagesAsRead();
+    // Don't mark as read on initial mount - let badges show first
     
     // Cleanup
     return () => {
       if (focusHandler) {
         window.removeEventListener('focus', focusHandler);
       }
-      document.removeEventListener('visibilitychange', markVisibleMessagesAsRead);
+      window.removeEventListener('blur', () => { wasFocused = false; });
+      document.removeEventListener('visibilitychange', visibilityHandler);
     };
   });
 </script>
