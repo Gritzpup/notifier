@@ -22,6 +22,24 @@ interface TelegramUpdate {
     };
     date: number;
     text?: string;
+    entities?: Array<{
+      type: string;
+      offset: number;
+      length: number;
+      url?: string;
+      user?: any;
+      language?: string;
+      custom_emoji_id?: string;
+    }>;
+    caption_entities?: Array<{
+      type: string;
+      offset: number;
+      length: number;
+      url?: string;
+      user?: any;
+      language?: string;
+      custom_emoji_id?: string;
+    }>;
     photo?: Array<{
       file_id: string;
       file_unique_id: string;
@@ -242,6 +260,38 @@ export class TelegramService {
     }
   }
 
+  private async getCustomEmojis(customEmojiIds: string[]): Promise<Map<string, any>> {
+    const emojiMap = new Map<string, any>();
+    
+    try {
+      const response = await fetch(
+        `https://api.telegram.org/bot${this.token}/getCustomEmojiStickers`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ custom_emoji_ids: customEmojiIds })
+        }
+      );
+      
+      if (!response.ok) {
+        console.error('Failed to fetch custom emoji stickers:', response.status);
+        return emojiMap;
+      }
+      
+      const data = await response.json();
+      
+      if (data.ok && data.result) {
+        for (const sticker of data.result) {
+          emojiMap.set(sticker.custom_emoji_id, sticker);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching custom emojis:', error);
+    }
+    
+    return emojiMap;
+  }
+
   private async handleUpdate(update: TelegramUpdate) {
     if (update.message) {
       const chat = update.message.chat;
@@ -275,6 +325,41 @@ export class TelegramService {
       // Prepare content and attachments
       let content = update.message.text || '';
       const attachments: any[] = [];
+      const customEmojis: any[] = [];
+      
+      // Process custom emojis if present
+      if (update.message.entities && content) {
+        const customEmojiEntities = update.message.entities.filter(e => e.type === 'custom_emoji' && e.custom_emoji_id);
+        
+        if (customEmojiEntities.length > 0) {
+          // Get custom emoji IDs
+          const customEmojiIds = customEmojiEntities.map(e => e.custom_emoji_id!);
+          
+          // Fetch custom emoji stickers
+          const customEmojiMap = await this.getCustomEmojis(customEmojiIds);
+          
+          // Process each custom emoji
+          for (const entity of customEmojiEntities) {
+            const sticker = customEmojiMap.get(entity.custom_emoji_id!);
+            if (sticker) {
+              // Get the emoji URL
+              const emojiUrl = await this.getFileUrl(sticker.file_id);
+              if (emojiUrl) {
+                customEmojis.push({
+                  id: sticker.file_id,
+                  name: sticker.emoji || 'custom_emoji',
+                  url: emojiUrl,
+                  offset: entity.offset,
+                  length: entity.length,
+                  width: sticker.width,
+                  height: sticker.height,
+                  animated: sticker.is_animated || false
+                });
+              }
+            }
+          }
+        }
+      }
       
       // Handle photo messages
       if (update.message.photo && update.message.photo.length > 0) {
@@ -386,6 +471,7 @@ export class TelegramService {
           content: content,
           avatarUrl: avatarUrl || undefined,
           attachments: attachments.length > 0 ? attachments : undefined,
+          telegramCustomEmojis: customEmojis.length > 0 ? customEmojis : undefined,
           channelId: chat.id.toString(),
           channelName: channelName,
           isDM: isDM

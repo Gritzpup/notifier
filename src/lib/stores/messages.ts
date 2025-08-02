@@ -21,6 +21,17 @@ export interface DiscordEmoji {
   animated?: boolean;
 }
 
+export interface TelegramCustomEmoji {
+  id: string;
+  name: string;
+  url: string;
+  offset: number;
+  length: number;
+  width: number;
+  height: number;
+  animated: boolean;
+}
+
 export interface TwitchEmote {
   id: string;
   name: string;
@@ -85,6 +96,7 @@ export interface Message {
   messageType?: MessageType;
   stickers?: DiscordSticker[];
   customEmojis?: DiscordEmoji[];
+  telegramCustomEmojis?: TelegramCustomEmoji[];
   emotes?: TwitchEmote[];
   embeds?: DiscordEmbed[];
   attachments?: Attachment[];

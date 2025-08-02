@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Message, DiscordSticker, DiscordEmoji, TwitchEmote, DiscordEmbed, Attachment } from '$lib/stores/messages';
+  import type { Message, DiscordSticker, DiscordEmoji, TwitchEmote, DiscordEmbed, Attachment, TelegramCustomEmoji } from '$lib/stores/messages';
   
   export let message: Message;
   
@@ -61,6 +61,26 @@
         const replacement = `<img src="${emoteUrl}" alt="${emoteText}" class="inline-emoji twitch-emote" />`;
         parsed = parsed.substring(0, start) + replacement + parsed.substring(end + 1);
       }
+    }
+    
+    return parsed;
+  }
+  
+  // Parse Telegram content and replace custom emojis with images
+  function parseTelegramContent(content: string, customEmojis?: TelegramCustomEmoji[]): string {
+    if (!customEmojis || customEmojis.length === 0) return content;
+    
+    // Sort custom emojis by offset (reverse order to avoid position shifts)
+    const sortedEmojis = [...customEmojis].sort((a, b) => b.offset - a.offset);
+    
+    let parsed = content;
+    for (const emoji of sortedEmojis) {
+      // Replace the emoji at the specified offset
+      const beforeEmoji = parsed.substring(0, emoji.offset);
+      const afterEmoji = parsed.substring(emoji.offset + emoji.length);
+      const emojiClass = emoji.animated ? 'inline-emoji telegram-custom-emoji animated' : 'inline-emoji telegram-custom-emoji';
+      const replacement = `<img src="${emoji.url}" alt="${emoji.name}" class="${emojiClass}" />`;
+      parsed = beforeEmoji + replacement + afterEmoji;
     }
     
     return parsed;
@@ -148,6 +168,8 @@
     ? parseDiscordContent(message.content, message.customEmojis)
     : message.platform === 'twitch'
     ? parseTwitchContent(message.content, message.emotes)
+    : message.platform === 'telegram'
+    ? parseTelegramContent(message.content, message.telegramCustomEmojis)
     : message.content;
     
   $: isSystemMessage = message.messageType === 'user_join' || message.messageType === 'user_leave';
@@ -401,6 +423,19 @@
   :global(.twitch-emote) {
     width: 1.75em;
     height: 1.75em;
+  }
+  
+  :global(.telegram-custom-emoji) {
+    width: 1.5em;
+    height: 1.5em;
+    display: inline-block;
+    object-fit: contain;
+  }
+  
+  :global(.telegram-custom-emoji.animated) {
+    /* Add a subtle animation indicator */
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
   }
   
   .system-message {
