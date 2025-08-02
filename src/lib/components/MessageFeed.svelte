@@ -8,12 +8,6 @@
   let filter: FilterType = 'all';
   let messageContainer: HTMLDivElement;
   let previousMessageCount = 0;
-  let focusHandler: (() => void) | null = null;
-  
-  // Debug: Log when unread counts change
-  $: {
-    console.log('Unread counts updated:', $unreadCount);
-  }
   
   const filterOptions: { value: FilterType; label: string; color?: string; isDM?: boolean }[] = [
     // Channel messages
@@ -36,26 +30,17 @@
   }
   
   function getUnreadCount(filterValue: FilterType): number {
-    const count = (() => {
-      switch (filterValue) {
-        case 'all': return $unreadCount.total;
-        case 'discord': return $unreadCount.discord;
-        case 'telegram': return $unreadCount.telegram;
-        case 'twitch': return $unreadCount.twitch;
-        case 'all-dms': return $unreadCount.allDMs;
-        case 'discord-dms': return $unreadCount.discordDMs;
-        case 'telegram-dms': return $unreadCount.telegramDMs;
-        case 'twitch-dms': return $unreadCount.twitchDMs;
-        default: return 0;
-      }
-    })();
-    
-    // Debug logging
-    if (filterValue === 'discord' || filterValue === 'twitch' || filterValue === 'telegram') {
-      console.log(`getUnreadCount(${filterValue}): ${count}`);
+    switch (filterValue) {
+      case 'all': return $unreadCount.total;
+      case 'discord': return $unreadCount.discord;
+      case 'telegram': return $unreadCount.telegram;
+      case 'twitch': return $unreadCount.twitch;
+      case 'all-dms': return $unreadCount.allDMs;
+      case 'discord-dms': return $unreadCount.discordDMs;
+      case 'telegram-dms': return $unreadCount.telegramDMs;
+      case 'twitch-dms': return $unreadCount.twitchDMs;
+      default: return 0;
     }
-    
-    return count;
   }
   
   async function scrollToBottom() {
@@ -73,62 +58,8 @@
     previousMessageCount = $filteredMessages.length;
   });
   
-  function markVisibleMessagesAsRead() {
-    if (document.hasFocus() && !document.hidden) {
-      console.log(`Window focused - marking ${filter} messages as read`);
-      
-      // For now, we'll mark messages based on the current filter view
-      // This matches the user's expectation that viewing messages marks them as read
-      const visibleMessageIds = $filteredMessages
-        .filter(msg => !msg.isRead)
-        .map(msg => msg.id);
-      
-      // Mark each visible message as read
-      visibleMessageIds.forEach(id => messagesStore.markAsRead(id));
-    }
-  }
-  
   onMount(() => {
     scrollToBottom();
-    
-    let wasHidden = document.hidden;
-    let wasFocused = document.hasFocus();
-    
-    // Create focus handler that only triggers when window GAINS focus
-    focusHandler = () => {
-      if (!wasFocused && document.hasFocus()) {
-        console.log('Window gained focus - marking messages as read');
-        // Small delay to ensure UI has updated
-        setTimeout(() => markVisibleMessagesAsRead(), 300);
-      }
-      wasFocused = document.hasFocus();
-    };
-    
-    // Handle visibility changes (tab switching)
-    const visibilityHandler = () => {
-      if (wasHidden && !document.hidden) {
-        console.log('Tab became visible - marking messages as read');
-        // Small delay to ensure UI has updated
-        setTimeout(() => markVisibleMessagesAsRead(), 300);
-      }
-      wasHidden = document.hidden;
-    };
-    
-    // Add event listeners
-    window.addEventListener('focus', focusHandler);
-    window.addEventListener('blur', () => { wasFocused = false; });
-    document.addEventListener('visibilitychange', visibilityHandler);
-    
-    // Don't mark as read on initial mount - let badges show first
-    
-    // Cleanup
-    return () => {
-      if (focusHandler) {
-        window.removeEventListener('focus', focusHandler);
-      }
-      window.removeEventListener('blur', () => { wasFocused = false; });
-      document.removeEventListener('visibilitychange', visibilityHandler);
-    };
   });
 </script>
 
