@@ -57,8 +57,60 @@
     previousMessageCount = $filteredMessages.length;
   });
   
+  function markVisibleMessagesAsRead() {
+    // Only mark messages in the current filter view
+    const unreadInView = $filteredMessages.filter(msg => !msg.isRead);
+    
+    if (unreadInView.length > 0) {
+      console.log(`Marking ${unreadInView.length} messages as read in ${filter} view`);
+      unreadInView.forEach(msg => {
+        messagesStore.markAsRead(msg.id);
+      });
+    }
+  }
+  
   onMount(() => {
     scrollToBottom();
+    
+    // Track if window is already focused on mount
+    let isInitiallyFocused = document.hasFocus();
+    let hasUserInteracted = false;
+    
+    // Only mark as read after user has been away and comes back
+    const handleFocus = () => {
+      if (!isInitiallyFocused && hasUserInteracted) {
+        // User was away and came back
+        console.log('Window regained focus - will mark messages as read after delay');
+        setTimeout(() => {
+          markVisibleMessagesAsRead();
+        }, 1000); // 1 second delay
+      }
+      hasUserInteracted = true;
+    };
+    
+    const handleBlur = () => {
+      isInitiallyFocused = false;
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    
+    // Also handle tab visibility
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && !isInitiallyFocused) {
+        console.log('Tab became visible - will mark messages as read after delay');
+        setTimeout(() => {
+          markVisibleMessagesAsRead();
+        }, 1000);
+      }
+    });
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', () => {});
+    };
   });
 </script>
 
