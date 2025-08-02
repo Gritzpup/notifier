@@ -130,11 +130,24 @@ export class DiscordService {
       case 'GUILD_CREATE':
         // Cache guild and channel names
         this.guildNames.set(payload.d.id, payload.d.name);
-        payload.d.channels?.forEach((channel: any) => {
-          this.channelNames.set(channel.id, channel.name);
-        });
         console.log(`Discord bot joined guild: ${payload.d.name} (${payload.d.id})`);
+        console.log(`Guild has ${payload.d.channels?.length || 0} channels`);
+        
+        // Debug channel structure
+        if (payload.d.channels && payload.d.channels.length > 0) {
+          console.log('First channel example:', JSON.stringify(payload.d.channels[0], null, 2));
+          
+          payload.d.channels.forEach((channel: any) => {
+            // Only cache text channels (type 0) and voice channels (type 2)
+            if (channel.type === 0 || channel.type === 2) {
+              this.channelNames.set(channel.id, channel.name);
+              console.log(`Cached channel: ${channel.name} (${channel.id})`);
+            }
+          });
+        }
+        
         console.log(`Total guilds: ${this.guildNames.size}`);
+        console.log(`Total cached channels: ${this.channelNames.size}`);
         break;
         
       case 'GUILD_DELETE':
@@ -142,6 +155,15 @@ export class DiscordService {
         this.guildNames.delete(payload.d.id);
         console.log(`Discord bot left guild: ${guildName} (${payload.d.id})`);
         console.log(`Total guilds: ${this.guildNames.size}`);
+        break;
+        
+      case 'CHANNEL_CREATE':
+      case 'CHANNEL_UPDATE':
+        // Cache channel when it's created or updated
+        if ((payload.d.type === 0 || payload.d.type === 2) && payload.d.guild_id) {
+          this.channelNames.set(payload.d.id, payload.d.name);
+          console.log(`Cached channel from ${payload.t}: ${payload.d.name} (${payload.d.id})`);
+        }
         break;
         
       case 'MESSAGE_CREATE':
@@ -165,8 +187,17 @@ export class DiscordService {
         let channelName = 'Direct Message';
         if (payload.d.guild_id) {
           const guildName = this.guildNames.get(payload.d.guild_id) || 'Unknown Server';
-          const channelNameOnly = this.channelNames.get(payload.d.channel_id) || 'unknown-channel';
-          channelName = `${guildName} #${channelNameOnly}`;
+          let channelNameOnly = this.channelNames.get(payload.d.channel_id);
+          
+          // If channel not cached, try to get it from the message event
+          if (!channelNameOnly && payload.d.channel_id) {
+            // Discord sometimes includes channel info in messages
+            // For now, we'll use the channel ID as a fallback
+            channelNameOnly = `channel-${payload.d.channel_id.slice(-6)}`;
+            console.log(`Channel ${payload.d.channel_id} not in cache, using fallback name`);
+          }
+          
+          channelName = `${guildName} #${channelNameOnly || 'unknown'}`;
         }
         
         console.log('Adding message to store:', payload.d.content);
