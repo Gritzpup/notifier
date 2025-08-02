@@ -32,18 +32,29 @@ function createMessagesStore() {
     subscribe,
     
     addMessage: (message: Omit<Message, 'id' | 'timestamp' | 'isRead'>) => {
-      update(state => ({
-        ...state,
-        messages: [
-          ...state.messages,
-          {
-            ...message,
-            id: `${message.platform}-${Date.now()}-${Math.random()}`,
-            timestamp: new Date(),
-            isRead: false
-          }
-        ].slice(-500) // Keep last 500 messages
-      }));
+      update(state => {
+        const newMessage = {
+          ...message,
+          id: `${message.platform}-${Date.now()}-${Math.random()}`,
+          timestamp: new Date(),
+          isRead: false
+        };
+        
+        console.log('Adding new message:', {
+          platform: newMessage.platform,
+          isDM: newMessage.isDM,
+          isRead: newMessage.isRead,
+          content: newMessage.content.slice(0, 50)
+        });
+        
+        return {
+          ...state,
+          messages: [
+            ...state.messages,
+            newMessage
+          ].slice(-500) // Keep last 500 messages
+        };
+      });
     },
     
     markAsRead: (messageId: string) => {
@@ -109,14 +120,28 @@ export const filteredMessages = derived(
 
 export const unreadCount = derived(
   messagesStore,
-  $store => ({
-    total: $store.messages.filter(msg => !msg.isRead).length,
-    discord: $store.messages.filter(msg => msg.platform === 'discord' && !msg.isRead && !msg.isDM).length,
-    telegram: $store.messages.filter(msg => msg.platform === 'telegram' && !msg.isRead && !msg.isDM).length,
-    twitch: $store.messages.filter(msg => msg.platform === 'twitch' && !msg.isRead && !msg.isDM).length,
-    allDMs: $store.messages.filter(msg => msg.isDM && !msg.isRead).length,
-    discordDMs: $store.messages.filter(msg => msg.platform === 'discord' && msg.isDM && !msg.isRead).length,
-    telegramDMs: $store.messages.filter(msg => msg.platform === 'telegram' && msg.isDM && !msg.isRead).length,
-    twitchDMs: $store.messages.filter(msg => msg.platform === 'twitch' && msg.isDM && !msg.isRead).length
-  })
+  $store => {
+    const counts = {
+      total: $store.messages.filter(msg => !msg.isRead).length,
+      discord: $store.messages.filter(msg => msg.platform === 'discord' && !msg.isRead && !msg.isDM).length,
+      telegram: $store.messages.filter(msg => msg.platform === 'telegram' && !msg.isRead && !msg.isDM).length,
+      twitch: $store.messages.filter(msg => msg.platform === 'twitch' && !msg.isRead && !msg.isDM).length,
+      allDMs: $store.messages.filter(msg => msg.isDM && !msg.isRead).length,
+      discordDMs: $store.messages.filter(msg => msg.platform === 'discord' && msg.isDM && !msg.isRead).length,
+      telegramDMs: $store.messages.filter(msg => msg.platform === 'telegram' && msg.isDM && !msg.isRead).length,
+      twitchDMs: $store.messages.filter(msg => msg.platform === 'twitch' && msg.isDM && !msg.isRead).length
+    };
+    
+    // Debug logging
+    if (counts.total > 0) {
+      console.log('Unread counts calculated:', counts);
+      console.log('Unread messages:', $store.messages.filter(msg => !msg.isRead).map(m => ({
+        platform: m.platform,
+        isDM: m.isDM,
+        content: m.content.slice(0, 20)
+      })));
+    }
+    
+    return counts;
+  }
 );
