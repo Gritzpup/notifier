@@ -109,14 +109,29 @@ export const filteredMessages = derived(
 
 export const unreadCount = derived(
   messagesStore,
-  $store => ({
-    total: $store.messages.filter(msg => !msg.isRead).length,
-    discord: $store.messages.filter(msg => msg.platform === 'discord' && !msg.isRead && !msg.isDM).length,
-    telegram: $store.messages.filter(msg => msg.platform === 'telegram' && !msg.isRead && !msg.isDM).length,
-    twitch: $store.messages.filter(msg => msg.platform === 'twitch' && !msg.isRead && !msg.isDM).length,
-    allDMs: $store.messages.filter(msg => msg.isDM && !msg.isRead).length,
-    discordDMs: $store.messages.filter(msg => msg.platform === 'discord' && msg.isDM && !msg.isRead).length,
-    telegramDMs: $store.messages.filter(msg => msg.platform === 'telegram' && msg.isDM && !msg.isRead).length,
-    twitchDMs: $store.messages.filter(msg => msg.platform === 'twitch' && msg.isDM && !msg.isRead).length
-  })
+  $store => {
+    const counts = {
+      total: $store.messages.filter(msg => !msg.isRead).length,
+      discord: $store.messages.filter(msg => msg.platform === 'discord' && !msg.isRead && !msg.isDM).length,
+      telegram: $store.messages.filter(msg => msg.platform === 'telegram' && !msg.isRead && !msg.isDM).length,
+      twitch: $store.messages.filter(msg => msg.platform === 'twitch' && !msg.isRead && !msg.isDM).length,
+      allDMs: $store.messages.filter(msg => msg.isDM && !msg.isRead).length,
+      discordDMs: $store.messages.filter(msg => msg.platform === 'discord' && msg.isDM && !msg.isRead).length,
+      telegramDMs: $store.messages.filter(msg => msg.platform === 'telegram' && msg.isDM && !msg.isRead).length,
+      twitchDMs: $store.messages.filter(msg => msg.platform === 'twitch' && msg.isDM && !msg.isRead).length
+    };
+    
+    console.log('Unread count calculation:', {
+      total: counts.total,
+      discord: counts.discord,
+      twitch: counts.twitch,
+      messages: $store.messages.map(m => ({
+        platform: m.platform,
+        isDM: m.isDM,
+        isRead: m.isRead
+      }))
+    });
+    
+    return counts;
+  }
 );

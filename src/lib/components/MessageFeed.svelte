@@ -9,6 +9,9 @@
   let messageContainer: HTMLDivElement;
   let previousMessageCount = 0;
   
+  // Debug unread counts
+  $: console.log('Unread counts:', $unreadCount);
+  
   const filterOptions: { value: FilterType; label: string; color?: string; isDM?: boolean }[] = [
     // Channel messages
     { value: 'all', label: 'All' },
@@ -30,17 +33,25 @@
   }
   
   function getUnreadCount(filterValue: FilterType): number {
-    switch (filterValue) {
-      case 'all': return $unreadCount.total;
-      case 'discord': return $unreadCount.discord;
-      case 'telegram': return $unreadCount.telegram;
-      case 'twitch': return $unreadCount.twitch;
-      case 'all-dms': return $unreadCount.allDMs;
-      case 'discord-dms': return $unreadCount.discordDMs;
-      case 'telegram-dms': return $unreadCount.telegramDMs;
-      case 'twitch-dms': return $unreadCount.twitchDMs;
-      default: return 0;
+    const count = (() => {
+      switch (filterValue) {
+        case 'all': return $unreadCount.total;
+        case 'discord': return $unreadCount.discord;
+        case 'telegram': return $unreadCount.telegram;
+        case 'twitch': return $unreadCount.twitch;
+        case 'all-dms': return $unreadCount.allDMs;
+        case 'discord-dms': return $unreadCount.discordDMs;
+        case 'telegram-dms': return $unreadCount.telegramDMs;
+        case 'twitch-dms': return $unreadCount.twitchDMs;
+        default: return 0;
+      }
+    })();
+    
+    if (count > 0) {
+      console.log(`getUnreadCount(${filterValue}) = ${count}`);
     }
+    
+    return count;
   }
   
   async function scrollToBottom() {
