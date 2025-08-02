@@ -22,6 +22,21 @@ interface TelegramUpdate {
     };
     date: number;
     text?: string;
+    photo?: Array<{
+      file_id: string;
+      file_unique_id: string;
+      file_size?: number;
+      width: number;
+      height: number;
+    }>;
+    caption?: string;
+    document?: {
+      file_id: string;
+      file_unique_id: string;
+      file_name?: string;
+      mime_type?: string;
+      file_size?: number;
+    };
   };
 }
 
@@ -39,6 +54,7 @@ export class TelegramService {
   private pollingTimeout: number | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
+  private userPhotoCache = new Map<number, string | null>(); // Cache user photos
 
   constructor(token: string, groupFilter: string[] = []) {
     this.token = token;
@@ -83,7 +99,7 @@ export class TelegramService {
     
     try {
       const response = await fetch(
-        `https://api.telegram.org/bot${this.token}/getUpdates?offset=${this.offset}&timeout=30&allowed_updates=["message"]`,
+        `https://api.telegram.org/bot${this.token}/getUpdates?offset=${this.offset}&timeout=30`,
         { signal: AbortSignal.timeout(35000) } // 35 second timeout (30s long poll + 5s buffer)
       );
       
@@ -115,8 +131,86 @@ export class TelegramService {
     }
   }
 
-  private handleUpdate(update: TelegramUpdate) {
-    if (update.message && update.message.text) {
+  private async getUserPhoto(userId: number): Promise<string | null> {
+    // Check cache first
+    if (this.userPhotoCache.has(userId)) {
+      return this.userPhotoCache.get(userId) || null;
+    }
+    
+    try {
+      // Get user profile photos
+      const response = await fetch(
+        `https://api.telegram.org/bot${this.token}/getUserProfilePhotos?user_id=${userId}&limit=1`
+      );
+      
+      if (!response.ok) {
+        console.error('Failed to fetch user photos:', response.status);
+        this.userPhotoCache.set(userId, null);
+        return null;
+      }
+      
+      const data = await response.json();
+      
+      if (data.ok && data.result.photos && data.result.photos.length > 0) {
+        // Get the smallest photo size (usually the first one)
+        const photo = data.result.photos[0][0]; // First photo, smallest size
+        
+        // Get file path
+        const fileResponse = await fetch(
+          `https://api.telegram.org/bot${this.token}/getFile?file_id=${photo.file_id}`
+        );
+        
+        if (!fileResponse.ok) {
+          console.error('Failed to fetch file path:', fileResponse.status);
+          this.userPhotoCache.set(userId, null);
+          return null;
+        }
+        
+        const fileData = await fileResponse.json();
+        
+        if (fileData.ok && fileData.result.file_path) {
+          const photoUrl = `https://api.telegram.org/file/bot${this.token}/${fileData.result.file_path}`;
+          this.userPhotoCache.set(userId, photoUrl);
+          return photoUrl;
+        }
+      }
+      
+      // No photo found
+      this.userPhotoCache.set(userId, null);
+      return null;
+    } catch (error) {
+      console.error('Error fetching user photo:', error);
+      this.userPhotoCache.set(userId, null);
+      return null;
+    }
+  }
+
+  private async getFileUrl(fileId: string): Promise<string | null> {
+    try {
+      const response = await fetch(
+        `https://api.telegram.org/bot${this.token}/getFile?file_id=${fileId}`
+      );
+      
+      if (!response.ok) {
+        console.error('Failed to fetch file info:', response.status);
+        return null;
+      }
+      
+      const data = await response.json();
+      
+      if (data.ok && data.result.file_path) {
+        return `https://api.telegram.org/file/bot${this.token}/${data.result.file_path}`;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching file URL:', error);
+      return null;
+    }
+  }
+
+  private async handleUpdate(update: TelegramUpdate) {
+    if (update.message) {
       const chat = update.message.chat;
       const from = update.message.from;
       
@@ -142,16 +236,78 @@ export class TelegramService {
         return;
       }
       
-      messagesStore.addMessage({
-        platform: 'telegram',
-        author: authorName,
-        content: update.message.text,
-        channelId: chat.id.toString(),
-        channelName: channelName,
-        isDM: isDM
-      });
+      // Fetch user avatar
+      const avatarUrl = await this.getUserPhoto(from.id);
       
-      console.log(`Telegram message from ${authorName} in ${channelName}`);
+      // Prepare content and attachments
+      let content = update.message.text || '';
+      const attachments: any[] = [];
+      
+      // Handle photo messages
+      if (update.message.photo && update.message.photo.length > 0) {
+        // Get the largest photo
+        const largestPhoto = update.message.photo[update.message.photo.length - 1];
+        const photoUrl = await this.getFileUrl(largestPhoto.file_id);
+        
+        if (photoUrl) {
+          attachments.push({
+            id: largestPhoto.file_id,
+            filename: 'photo.jpg',
+            size: largestPhoto.file_size || 0,
+            url: photoUrl,
+            proxy_url: photoUrl,
+            content_type: 'image/jpeg',
+            width: largestPhoto.width,
+            height: largestPhoto.height
+          });
+        }
+        
+        // Add caption as content if available
+        if (update.message.caption) {
+          content = update.message.caption;
+        }
+      }
+      
+      // Handle document messages
+      if (update.message.document) {
+        const doc = update.message.document;
+        const docUrl = await this.getFileUrl(doc.file_id);
+        
+        if (docUrl) {
+          attachments.push({
+            id: doc.file_id,
+            filename: doc.file_name || 'document',
+            size: doc.file_size || 0,
+            url: docUrl,
+            proxy_url: docUrl,
+            content_type: doc.mime_type
+          });
+        }
+        
+        // Add caption as content if available
+        if (update.message.caption) {
+          content = update.message.caption;
+        }
+      }
+      
+      // Only add message if there's content or attachments
+      if (content || attachments.length > 0) {
+        messagesStore.addMessage({
+          platform: 'telegram',
+          author: authorName,
+          content: content,
+          avatarUrl: avatarUrl || undefined,
+          attachments: attachments.length > 0 ? attachments : undefined,
+          channelId: chat.id.toString(),
+          channelName: channelName,
+          isDM: isDM
+        });
+        
+        console.log(`Telegram message from ${authorName} in ${channelName}`);
+        if (attachments.length > 0) {
+          console.log(`  with ${attachments.length} attachment(s)`);
+        }
+      }
     }
   }
 
