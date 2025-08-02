@@ -9,8 +9,18 @@
   let messageContainer: HTMLDivElement;
   let previousMessageCount = 0;
   
-  // Debug unread counts
-  $: console.log('Unread counts:', $unreadCount);
+  // Force reactivity for badge rendering
+  let badges: Record<string, number>;
+  $: badges = {
+    all: $unreadCount.total,
+    discord: $unreadCount.discord,
+    telegram: $unreadCount.telegram,
+    twitch: $unreadCount.twitch,
+    'all-dms': $unreadCount.allDMs,
+    'discord-dms': $unreadCount.discordDMs,
+    'telegram-dms': $unreadCount.telegramDMs,
+    'twitch-dms': $unreadCount.twitchDMs
+  };
   
   const filterOptions: { value: FilterType; label: string; color?: string; isDM?: boolean }[] = [
     // Channel messages
@@ -30,28 +40,6 @@
     messagesStore.setFilter(newFilter);
     // Don't automatically mark as read when switching filters
     // Let the user see the unread badges first
-  }
-  
-  function getUnreadCount(filterValue: FilterType): number {
-    const count = (() => {
-      switch (filterValue) {
-        case 'all': return $unreadCount.total;
-        case 'discord': return $unreadCount.discord;
-        case 'telegram': return $unreadCount.telegram;
-        case 'twitch': return $unreadCount.twitch;
-        case 'all-dms': return $unreadCount.allDMs;
-        case 'discord-dms': return $unreadCount.discordDMs;
-        case 'telegram-dms': return $unreadCount.telegramDMs;
-        case 'twitch-dms': return $unreadCount.twitchDMs;
-        default: return 0;
-      }
-    })();
-    
-    if (count > 0) {
-      console.log(`getUnreadCount(${filterValue}) = ${count}`);
-    }
-    
-    return count;
   }
   
   async function scrollToBottom() {
@@ -87,9 +75,9 @@
       >
         <span class={option.color}>
           {option.label}
-          {#if getUnreadCount(option.value) > 0}
+          {#if badges[option.value] > 0}
             <span class="ml-1 px-1.5 py-0.5 text-xs bg-blue-500 text-white rounded-full">
-              {getUnreadCount(option.value)}
+              {badges[option.value]}
             </span>
           {/if}
         </span>
