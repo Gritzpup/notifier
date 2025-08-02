@@ -2,6 +2,48 @@ import { writable, derived } from 'svelte/store';
 
 export type Platform = 'discord' | 'telegram' | 'twitch';
 
+export interface DiscordSticker {
+  id: string;
+  name: string;
+  format_type: number;
+  type?: number; // 1 = Standard (Discord), 2 = Guild
+  guild_id?: string;
+  pack_id?: string; // For standard Discord stickers
+  asset?: string; // Alternative asset ID
+  description?: string;
+  tags?: string;
+  available?: boolean;
+}
+
+export interface DiscordEmoji {
+  id: string;
+  name: string;
+  animated?: boolean;
+}
+
+export interface TwitchEmote {
+  id: string;
+  name: string;
+  positions: Array<[number, number]>;
+}
+
+export interface DiscordEmbed {
+  title?: string;
+  description?: string;
+  color?: number;
+  author?: {
+    name: string;
+    icon_url?: string;
+  };
+  fields?: Array<{
+    name: string;
+    value: string;
+    inline?: boolean;
+  }>;
+}
+
+export type MessageType = 'text' | 'user_join' | 'user_leave' | 'system';
+
 export interface Message {
   id: string;
   platform: Platform;
@@ -13,6 +55,12 @@ export interface Message {
   channelName?: string;
   isRead: boolean;
   isDM: boolean;
+  messageType?: MessageType;
+  stickers?: DiscordSticker[];
+  customEmojis?: DiscordEmoji[];
+  emotes?: TwitchEmote[];
+  embeds?: DiscordEmbed[];
+  isBot?: boolean;
 }
 
 export type FilterType = Platform | 'all' | 'all-dms' | 'discord-dms' | 'telegram-dms' | 'twitch-dms';

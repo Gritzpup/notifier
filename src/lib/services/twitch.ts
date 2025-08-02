@@ -1,10 +1,14 @@
 import { messagesStore } from '$lib/stores/messages';
 import { connectionsStore } from '$lib/stores/connections';
+import { getTwitchAPIClient } from './twitch-api';
+import type { TwitchEmote } from '$lib/stores/messages';
 
 interface TwitchCredentials {
   username: string;
   oauth: string;
   channels: string[];
+  clientId?: string;
+  clientSecret?: string;
 }
 
 export class TwitchService {
@@ -15,9 +19,15 @@ export class TwitchService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private joinedChannels = new Set<string>();
+  private apiClient = null as ReturnType<typeof getTwitchAPIClient>;
+  private userAvatarCache = new Map<string, string>();
 
   constructor(credentials: TwitchCredentials) {
     this.credentials = credentials;
+    // Initialize API client if credentials provided
+    if (credentials.clientId && credentials.clientSecret) {
+      this.apiClient = getTwitchAPIClient(credentials.clientId, credentials.clientSecret);
+    }
   }
 
   connect() {
@@ -134,14 +144,24 @@ export class TwitchService {
           
         case 'PRIVMSG':
           console.log(`[Twitch] Chat message from ${parsed.nick} in ${parsed.channel}: ${parsed.message}`);
+          console.log('[Twitch] Message tags:', parsed.tags);
+          
           if (parsed.nick && parsed.channel && parsed.message) {
-            messagesStore.addMessage({
-              platform: 'twitch',
-              author: parsed.nick,
-              content: parsed.message,
-              channelId: parsed.channel,
-              channelName: parsed.channel,
-              isDM: false
+            // Parse emotes from tags
+            const emotes = this.parseEmotesFromTags(parsed.tags.emotes, parsed.message);
+            
+            // Get user avatar if API client available
+            this.fetchUserAvatar(parsed.nick).then(avatarUrl => {
+              messagesStore.addMessage({
+                platform: 'twitch',
+                author: parsed.nick,
+                content: parsed.message,
+                avatarUrl: avatarUrl,
+                channelId: parsed.channel,
+                channelName: parsed.channel,
+                isDM: false,
+                emotes: emotes.length > 0 ? emotes : undefined
+              });
             });
           }
           break;
@@ -280,6 +300,66 @@ export class TwitchService {
       this.ws.close();
       this.ws = null;
     }
+  }
+
+  private parseEmotesFromTags(emotesTag: string | undefined | boolean, message: string): TwitchEmote[] {
+    if (!emotesTag || typeof emotesTag !== 'string') return [];
+    
+    const emotes: TwitchEmote[] = [];
+    const emoteData = emotesTag.split('/');
+    
+    for (const emote of emoteData) {
+      const [id, positions] = emote.split(':');
+      if (!id || !positions) continue;
+      
+      // Parse positions (can be multiple for the same emote)
+      const positionPairs = positions.split(',');
+      const parsedPositions: Array<[number, number]> = [];
+      
+      for (const pos of positionPairs) {
+        const [start, end] = pos.split('-').map(Number);
+        if (!isNaN(start) && !isNaN(end)) {
+          parsedPositions.push([start, end]);
+          
+          // Extract emote name from message using the first position
+          if (parsedPositions.length === 1) {
+            const emoteName = message.substring(start, end + 1);
+            emotes.push({
+              id,
+              name: emoteName,
+              positions: parsedPositions
+            });
+          }
+        }
+      }
+    }
+    
+    console.log('[Twitch] Parsed emotes:', emotes);
+    return emotes;
+  }
+  
+  private async fetchUserAvatar(username: string): Promise<string | undefined> {
+    // Check cache first
+    if (this.userAvatarCache.has(username)) {
+      return this.userAvatarCache.get(username);
+    }
+    
+    // If no API client, return undefined
+    if (!this.apiClient) {
+      return undefined;
+    }
+    
+    try {
+      const user = await this.apiClient.getUserByLogin(username);
+      if (user && user.profile_image_url) {
+        this.userAvatarCache.set(username, user.profile_image_url);
+        return user.profile_image_url;
+      }
+    } catch (error) {
+      console.error(`[Twitch] Failed to fetch avatar for ${username}:`, error);
+    }
+    
+    return undefined;
   }
 
   disconnect() {

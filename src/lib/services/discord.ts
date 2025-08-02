@@ -170,11 +170,42 @@ export class DiscordService {
         console.log('Discord MESSAGE_CREATE event received');
         console.log('Message from:', payload.d.author.username, 'in channel:', payload.d.channel_id);
         console.log('Guild ID:', payload.d.guild_id || 'DM');
+        console.log('Is bot:', payload.d.author.bot);
+        console.log('Message content:', payload.d.content);
+        console.log('Embeds:', payload.d.embeds?.length || 0);
+        console.log('Stickers:', payload.d.sticker_items?.length || 0);
+        if (payload.d.sticker_items?.length > 0) {
+          console.log('Full sticker payload:', JSON.stringify({
+            sticker_items: payload.d.sticker_items,
+            type: payload.d.type
+          }, null, 2));
+        }
         
-        // Skip bot messages
-        if (payload.d.author.bot || payload.d.author.id === payload.d.application_id) {
-          console.log('Skipping bot message');
-          break;
+        // Check if this is a bot message with arrival/departure information
+        let messageType: 'text' | 'user_join' | 'user_leave' | 'system' = 'text';
+        let shouldProcessBotMessage = false;
+        
+        if (payload.d.author.bot) {
+          // Check for common arrival/departure patterns in embeds or content
+          const content = payload.d.content?.toLowerCase() || '';
+          const embedDescriptions = payload.d.embeds?.map((e: any) => e.description?.toLowerCase() || '').join(' ') || '';
+          const allText = content + ' ' + embedDescriptions;
+          
+          if (allText.includes('joined') || allText.includes('welcome') || allText.includes('is here') || allText.includes('has arrived')) {
+            messageType = 'user_join';
+            shouldProcessBotMessage = true;
+            console.log('Detected user join message');
+          } else if (allText.includes('left') || allText.includes('goodbye') || allText.includes('has left') || allText.includes('disconnected')) {
+            messageType = 'user_leave';
+            shouldProcessBotMessage = true;
+            console.log('Detected user leave message');
+          }
+          
+          // Skip other bot messages
+          if (!shouldProcessBotMessage) {
+            console.log('Skipping non-arrival/departure bot message');
+            break;
+          }
         }
         
         // Filter by channel if specified
@@ -200,18 +231,80 @@ export class DiscordService {
           channelName = `${guildName} #${channelNameOnly || 'unknown'}`;
         }
         
-        console.log('Adding message to store:', payload.d.content);
+        // Parse stickers - Discord sends both stickers and sticker_items
+        const stickerData = payload.d.stickers || payload.d.sticker_items;
+        if (stickerData && stickerData.length > 0) {
+          console.log('Raw sticker data:', JSON.stringify(stickerData, null, 2));
+        }
+        const stickers = stickerData?.map((sticker: any) => ({
+          id: sticker.id,
+          name: sticker.name,
+          format_type: sticker.format_type,
+          type: sticker.type, // 1 = Standard (Discord), 2 = Guild
+          guild_id: sticker.guild_id,
+          pack_id: sticker.pack_id, // For standard Discord stickers
+          asset: sticker.asset, // Alternative asset ID
+          description: sticker.description,
+          tags: sticker.tags,
+          available: sticker.available
+        }));
+        
+        // Parse custom emojis from content
+        const customEmojis: any[] = [];
+        const emojiRegex = /<(a?):(\w+):(\d+)>/g;
+        let match;
+        while ((match = emojiRegex.exec(payload.d.content)) !== null) {
+          customEmojis.push({
+            id: match[3],
+            name: match[2],
+            animated: match[1] === 'a'
+          });
+        }
+        
+        // Parse embeds
+        const embeds = payload.d.embeds?.map((embed: any) => ({
+          title: embed.title,
+          description: embed.description,
+          color: embed.color,
+          author: embed.author ? {
+            name: embed.author.name,
+            icon_url: embed.author.icon_url
+          } : undefined,
+          fields: embed.fields
+        }));
+        
+        // Build display content
+        let displayContent = payload.d.content || '';
+        if (messageType === 'user_join' || messageType === 'user_leave') {
+          // For bot messages, also include embed descriptions
+          if (embeds && embeds.length > 0) {
+            const embedText = embeds.map((e: any) => e.description || e.title || '').filter(Boolean).join(' - ');
+            if (embedText) {
+              displayContent = displayContent ? `${displayContent} - ${embedText}` : embedText;
+            }
+          }
+        }
+        
+        console.log('Adding message to store:', displayContent);
+        console.log('Message type:', messageType);
+        console.log('Stickers:', stickers?.length || 0);
+        console.log('Custom emojis:', customEmojis.length);
         
         messagesStore.addMessage({
           platform: 'discord',
           author: payload.d.author.username,
-          content: payload.d.content,
+          content: displayContent,
           avatarUrl: payload.d.author.avatar 
             ? `https://cdn.discordapp.com/avatars/${payload.d.author.id}/${payload.d.author.avatar}.png`
             : undefined,
           channelId: payload.d.channel_id,
           channelName: channelName,
-          isDM: !payload.d.guild_id
+          isDM: !payload.d.guild_id,
+          messageType: messageType,
+          isBot: payload.d.author.bot,
+          stickers: stickers,
+          customEmojis: customEmojis.length > 0 ? customEmojis : undefined,
+          embeds: embeds
         });
         break;
         

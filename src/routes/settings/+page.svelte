@@ -48,7 +48,7 @@
             <span class="font-medium">Telegram</span>
           </div>
           <span class="text-sm text-gray-400">
-            {hasTelegramConfig() ? 'Configured' : 'Not configured'}
+            {hasTelegramConfig() ? `Configured${config.telegram.groups.length > 0 ? ` (${config.telegram.groups.length} groups)` : ''}` : 'Not configured'}
           </span>
         </div>
         
@@ -105,7 +105,16 @@
             <li>Choose a username ending in "bot"</li>
             <li>Copy the token BotFather gives you</li>
             <li>Add to .env: <code class="bg-gray-900 px-2 py-1 rounded">VITE_TELEGRAM_TOKEN=your_token_here</code></li>
-            <li>Start a chat with your bot to receive messages</li>
+            <li>For private messages: Start a chat with your bot</li>
+            <li>For groups: 
+              <ul class="list-disc list-inside ml-6 mt-1">
+                <li>Add the bot to your group</li>
+                <li>Make the bot an admin (required for some groups)</li>
+                <li>Send a message in the group</li>
+                <li>Get the group ID from: <code class="bg-gray-900 px-1 rounded text-xs">https://api.telegram.org/bot[TOKEN]/getUpdates</code></li>
+                <li>Add to .env: <code class="bg-gray-900 px-1 rounded text-xs">VITE_TELEGRAM_GROUPS=group_id_here</code></li>
+              </ul>
+            </li>
           </ol>
         </div>
         

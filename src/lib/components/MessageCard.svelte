@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Message } from '$lib/stores/messages';
   import { messagesStore } from '$lib/stores/messages';
+  import RichMessageContent from './RichMessageContent.svelte';
   
   export let message: Message;
   
@@ -69,8 +70,15 @@
         {/if}
         
         <div class="flex-1">
-          <p class="font-semibold text-sm mb-1">{message.author}</p>
-          <p class="text-sm text-gray-300 break-words">{message.content}</p>
+          <p class="font-semibold text-sm mb-1">
+            {message.author}
+            {#if message.isBot}
+              <span class="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded ml-1">BOT</span>
+            {/if}
+          </p>
+          <div class="text-sm text-gray-300">
+            <RichMessageContent {message} />
+          </div>
         </div>
       </div>
     </div>

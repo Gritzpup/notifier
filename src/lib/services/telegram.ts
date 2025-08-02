@@ -15,6 +15,7 @@ interface TelegramUpdate {
     chat: {
       id: number;
       type: string;
+      title?: string; // For groups/channels
       first_name?: string;
       last_name?: string;
       username?: string;
@@ -31,6 +32,7 @@ interface TelegramResponse {
 
 export class TelegramService {
   private token: string;
+  private groupFilter: string[];
   private offset = 0;
   private isPolling = false;
   private isDestroyed = false;
@@ -38,8 +40,9 @@ export class TelegramService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
 
-  constructor(token: string) {
+  constructor(token: string, groupFilter: string[] = []) {
     this.token = token;
+    this.groupFilter = groupFilter;
   }
 
   async connect() {
@@ -113,19 +116,42 @@ export class TelegramService {
   }
 
   private handleUpdate(update: TelegramUpdate) {
-    if (update.message && update.message.text && update.message.chat.type === 'private') {
+    if (update.message && update.message.text) {
+      const chat = update.message.chat;
       const from = update.message.from;
+      
+      // Skip if we have a filter and this chat is not in the filter
+      if (this.groupFilter.length > 0 && !this.groupFilter.includes(chat.id.toString())) {
+        return;
+      }
+      
       const authorName = from.username || 
         `${from.first_name}${from.last_name ? ' ' + from.last_name : ''}`;
+      
+      let channelName = '';
+      let isDM = false;
+      
+      if (chat.type === 'private') {
+        channelName = authorName;
+        isDM = true;
+      } else if (chat.type === 'group' || chat.type === 'supergroup') {
+        channelName = chat.title || `Group ${chat.id}`;
+        isDM = false;
+      } else {
+        // Skip other types like channels unless we add support later
+        return;
+      }
       
       messagesStore.addMessage({
         platform: 'telegram',
         author: authorName,
         content: update.message.text,
-        channelId: update.message.chat.id.toString(),
-        channelName: authorName,
-        isDM: true
+        channelId: chat.id.toString(),
+        channelName: channelName,
+        isDM: isDM
       });
+      
+      console.log(`Telegram message from ${authorName} in ${channelName}`);
     }
   }
 

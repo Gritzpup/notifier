@@ -68,7 +68,7 @@
     }
     
     if (hasTelegramConfig()) {
-      telegramService = new TelegramService(config.telegram.botToken);
+      telegramService = new TelegramService(config.telegram.botToken, config.telegram.groups);
       telegramService.connect();
     }
     

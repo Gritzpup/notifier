@@ -3,15 +3,19 @@ export const config = {
   discord: {
     token: import.meta.env.VITE_DISCORD_TOKEN || '',
     // Optional: specify channel IDs to monitor, leave empty for all channels
-    channels: (import.meta.env.VITE_DISCORD_CHANNELS || '').split(',').filter(c => c.trim())
+    channels: (import.meta.env.VITE_DISCORD_CHANNELS || '').split(',').filter((c: string) => c.trim())
   },
   telegram: {
-    botToken: import.meta.env.VITE_TELEGRAM_TOKEN || ''
+    botToken: import.meta.env.VITE_TELEGRAM_TOKEN || '',
+    // Optional: specify group/chat IDs to monitor, leave empty for all groups
+    groups: (import.meta.env.VITE_TELEGRAM_GROUPS || '').split(',').filter((g: string) => g.trim())
   },
   twitch: {
     username: import.meta.env.VITE_TWITCH_USERNAME || '',
     oauth: import.meta.env.VITE_TWITCH_OAUTH || '',
-    channels: (import.meta.env.VITE_TWITCH_CHANNELS || '').split(',').filter(c => c.trim())
+    channels: (import.meta.env.VITE_TWITCH_CHANNELS || '').split(',').filter((c: string) => c.trim()),
+    clientId: import.meta.env.VITE_TWITCH_CLIENT_ID || '',
+    clientSecret: import.meta.env.VITE_TWITCH_CLIENT_SECRET || ''
   }
 };
 
