@@ -274,7 +274,23 @@ export class DiscordService {
             name: embed.author.name,
             icon_url: embed.author.icon_url
           } : undefined,
-          fields: embed.fields
+          fields: embed.fields,
+          image: embed.image ? {
+            url: embed.image.url,
+            proxy_url: embed.image.proxy_url,
+            width: embed.image.width,
+            height: embed.image.height
+          } : undefined,
+          video: embed.video ? {
+            url: embed.video.url,
+            proxy_url: embed.video.proxy_url,
+            width: embed.video.width,
+            height: embed.video.height
+          } : undefined,
+          provider: embed.provider ? {
+            name: embed.provider.name,
+            url: embed.provider.url
+          } : undefined
         }));
         
         // Parse attachments

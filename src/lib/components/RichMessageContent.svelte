@@ -287,6 +287,31 @@
               {/each}
             </div>
           {/if}
+          
+          {#if embed.image}
+            <div class="embed-image">
+              <img 
+                src={embed.image.url} 
+                alt=""
+                loading="lazy"
+                style={embed.image.width && embed.image.height ? `max-width: ${Math.min(embed.image.width, 400)}px; max-height: ${Math.min(embed.image.height, 300)}px;` : 'max-width: 400px; max-height: 300px;'}
+              />
+            </div>
+          {/if}
+          
+          {#if embed.video}
+            <div class="embed-video">
+              <video
+                src={embed.video.url}
+                autoplay
+                loop
+                muted
+                playsinline
+                controls={false}
+                style={embed.video.width && embed.video.height ? `max-width: ${Math.min(embed.video.width, 400)}px; max-height: ${Math.min(embed.video.height, 300)}px;` : 'max-width: 400px; max-height: 300px;'}
+              />
+            </div>
+          {/if}
         </div>
       {/each}
     </div>
@@ -569,6 +594,30 @@
   .embed-field-value {
     font-size: 0.875rem;
     color: rgba(255, 255, 255, 0.8);
+  }
+  
+  .embed-image {
+    margin-top: 0.5rem;
+  }
+  
+  .embed-image img {
+    display: block;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+  
+  .embed-video {
+    margin-top: 0.5rem;
+  }
+  
+  .embed-video video {
+    display: block;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 4px;
   }
   
   .attachments-container {

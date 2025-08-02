@@ -40,6 +40,22 @@ export interface DiscordEmbed {
     value: string;
     inline?: boolean;
   }>;
+  image?: {
+    url: string;
+    proxy_url?: string;
+    width?: number;
+    height?: number;
+  };
+  video?: {
+    url: string;
+    proxy_url?: string;
+    width?: number;
+    height?: number;
+  };
+  provider?: {
+    name: string;
+    url?: string;
+  };
 }
 
 export interface Attachment {
