@@ -301,16 +301,12 @@ export class TelegramService {
         }
       }
       
-      // Handle document messages
-      if (update.message.document) {
+      // Handle document messages (skip if it's also an animation to avoid duplicates)
+      if (update.message.document && !update.message.animation) {
         const doc = update.message.document;
         const docUrl = await this.getFileUrl(doc.file_id);
         
         if (docUrl) {
-          // Check if this is actually an animation that wasn't caught
-          const isAnimation = doc.mime_type === 'video/mp4' && 
-                            (doc.file_name?.includes('animation') || doc.file_name?.endsWith('.gif.mp4'));
-          
           attachments.push({
             id: doc.file_id,
             filename: doc.file_name || 'document',
