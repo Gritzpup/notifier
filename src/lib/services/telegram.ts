@@ -319,11 +319,6 @@ export class TelegramService {
             proxy_url: docUrl,
             content_type: doc.mime_type
           });
-          
-          // If it's an animation and no content yet, add GIF indicator
-          if (isAnimation && !content) {
-            content = 'GIF';
-          }
         }
         
         // Add caption as content if available
@@ -348,11 +343,6 @@ export class TelegramService {
             width: animation.width,
             height: animation.height
           });
-          
-          // If no content yet, add a GIF indicator
-          if (!content) {
-            content = 'GIF';
-          }
         }
         
         // Add caption as content if available
@@ -378,11 +368,6 @@ export class TelegramService {
             width: sticker.width,
             height: sticker.height
           });
-          
-          // Add emoji as content if no other content
-          if (!content && sticker.emoji) {
-            content = `Sticker: ${sticker.emoji}`;
-          }
         }
       }
       
