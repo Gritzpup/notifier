@@ -386,6 +386,17 @@ export class TelegramService {
         }
       }
       
+      // Check if this is a relayed message from another platform
+      const relayPrefixes = ['[Discord]', '[Twitch]'];
+      const isRelayedMessage = content && relayPrefixes.some(prefix => 
+        content.trimStart().startsWith(prefix)
+      );
+      
+      if (isRelayedMessage) {
+        console.log('[Telegram] Skipping relayed message:', content.substring(0, 50) + '...');
+        return;
+      }
+      
       // Only add message if there's content or attachments
       if (content || attachments.length > 0) {
         messagesStore.addMessage({

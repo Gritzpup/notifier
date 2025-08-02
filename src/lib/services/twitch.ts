@@ -147,6 +147,17 @@ export class TwitchService {
           console.log('[Twitch] Message tags:', parsed.tags);
           
           if (parsed.nick && parsed.channel && parsed.message) {
+            // Check if this is a relayed message from another platform
+            const relayPrefixes = ['[Discord]', '[Telegram]'];
+            const isRelayedMessage = relayPrefixes.some(prefix => 
+              parsed.message.trimStart().startsWith(prefix)
+            );
+            
+            if (isRelayedMessage) {
+              console.log('[Twitch] Skipping relayed message:', parsed.message.substring(0, 50) + '...');
+              break;
+            }
+            
             // Parse emotes from tags
             const emotes = this.parseEmotesFromTags(parsed.tags.emotes, parsed.message);
             

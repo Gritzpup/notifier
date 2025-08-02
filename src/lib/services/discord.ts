@@ -212,6 +212,18 @@ export class DiscordService {
           }
         }
         
+        // Check if this is a relayed message from another platform
+        const messageContent = payload.d.content || '';
+        const relayPrefixes = ['[Telegram]', '[Twitch]'];
+        const isRelayedMessage = relayPrefixes.some(prefix => 
+          messageContent.trimStart().startsWith(prefix)
+        );
+        
+        if (isRelayedMessage) {
+          console.log('[Discord] Skipping relayed message:', messageContent.substring(0, 50) + '...');
+          break;
+        }
+        
         // Filter by channel if specified
         if (this.channelFilter.length > 0 && !this.channelFilter.includes(payload.d.channel_id)) {
           console.log('Message filtered out - channel not in filter list');
