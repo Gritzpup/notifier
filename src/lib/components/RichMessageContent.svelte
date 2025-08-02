@@ -295,19 +295,40 @@
   {#if message.attachments && message.attachments.length > 0}
     <div class="attachments-container">
       {#each message.attachments as attachment}
-        {#if attachment.content_type?.startsWith('image/')}
-          <div class="attachment-image">
-            <img 
-              src={attachment.url} 
-              alt={attachment.filename}
-              loading="lazy"
-              style={attachment.width && attachment.height ? `max-width: ${Math.min(attachment.width, 400)}px; max-height: ${Math.min(attachment.height, 300)}px;` : ''}
-            />
-            <div class="attachment-info">
-              <span class="attachment-filename">{attachment.filename}</span>
-              <span class="attachment-size">{formatFileSize(attachment.size)}</span>
-            </div>
+        <!-- Check if this is a Telegram sticker (image or video) -->
+        {#if message.platform === 'telegram' && attachment.filename?.includes('sticker')}
+          <div class="telegram-sticker-container">
+            {#if attachment.content_type?.startsWith('video/')}
+              <video 
+                src={attachment.url}
+                class="telegram-sticker"
+                autoplay
+                loop
+                muted
+                playsinline
+              />
+            {:else}
+              <img 
+                src={attachment.url} 
+                alt={attachment.filename}
+                loading="lazy"
+                class="telegram-sticker"
+              />
+            {/if}
           </div>
+        {:else if attachment.content_type?.startsWith('image/')}
+            <div class="attachment-image">
+              <img 
+                src={attachment.url} 
+                alt={attachment.filename}
+                loading="lazy"
+                style={attachment.width && attachment.height ? `max-width: ${Math.min(attachment.width, 400)}px; max-height: ${Math.min(attachment.height, 300)}px;` : ''}
+              />
+              <div class="attachment-info">
+                <span class="attachment-filename">{attachment.filename}</span>
+                <span class="attachment-size">{formatFileSize(attachment.size)}</span>
+              </div>
+            </div>
         {:else}
           <a href={attachment.url} target="_blank" rel="noopener noreferrer" class="attachment-file">
             <div class="file-icon">📎</div>
@@ -615,5 +636,19 @@
   .attachment-size {
     font-size: 0.75rem;
     color: rgba(255, 255, 255, 0.6);
+  }
+  
+  .telegram-sticker-container {
+    display: inline-block;
+    margin: 0.25rem 0;
+  }
+  
+  .telegram-sticker {
+    max-width: 120px;
+    max-height: 120px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
   }
 </style>

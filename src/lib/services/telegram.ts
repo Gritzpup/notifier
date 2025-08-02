@@ -37,6 +37,23 @@ interface TelegramUpdate {
       mime_type?: string;
       file_size?: number;
     };
+    sticker?: {
+      file_id: string;
+      file_unique_id: string;
+      width: number;
+      height: number;
+      is_animated?: boolean;
+      is_video?: boolean;
+      thumbnail?: {
+        file_id: string;
+        file_unique_id: string;
+        width: number;
+        height: number;
+      };
+      emoji?: string;
+      set_name?: string;
+      file_size?: number;
+    };
   };
 }
 
@@ -287,6 +304,31 @@ export class TelegramService {
         // Add caption as content if available
         if (update.message.caption) {
           content = update.message.caption;
+        }
+      }
+      
+      // Handle sticker messages
+      if (update.message.sticker) {
+        const sticker = update.message.sticker;
+        const stickerUrl = await this.getFileUrl(sticker.file_id);
+        
+        if (stickerUrl) {
+          // Add sticker as an attachment
+          attachments.push({
+            id: sticker.file_id,
+            filename: `sticker_${sticker.emoji || 'unknown'}.webp`,
+            size: sticker.file_size || 0,
+            url: stickerUrl,
+            proxy_url: stickerUrl,
+            content_type: sticker.is_video ? 'video/webm' : 'image/webp',
+            width: sticker.width,
+            height: sticker.height
+          });
+          
+          // Add emoji as content if no other content
+          if (!content && sticker.emoji) {
+            content = `Sticker: ${sticker.emoji}`;
+          }
         }
       }
       
