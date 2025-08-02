@@ -37,6 +37,22 @@ interface TelegramUpdate {
       mime_type?: string;
       file_size?: number;
     };
+    animation?: {
+      file_id: string;
+      file_unique_id: string;
+      width: number;
+      height: number;
+      duration: number;
+      thumbnail?: {
+        file_id: string;
+        file_unique_id: string;
+        width: number;
+        height: number;
+      };
+      file_name?: string;
+      mime_type?: string;
+      file_size?: number;
+    };
     sticker?: {
       file_id: string;
       file_unique_id: string;
@@ -291,6 +307,10 @@ export class TelegramService {
         const docUrl = await this.getFileUrl(doc.file_id);
         
         if (docUrl) {
+          // Check if this is actually an animation that wasn't caught
+          const isAnimation = doc.mime_type === 'video/mp4' && 
+                            (doc.file_name?.includes('animation') || doc.file_name?.endsWith('.gif.mp4'));
+          
           attachments.push({
             id: doc.file_id,
             filename: doc.file_name || 'document',
@@ -299,6 +319,40 @@ export class TelegramService {
             proxy_url: docUrl,
             content_type: doc.mime_type
           });
+          
+          // If it's an animation and no content yet, add GIF indicator
+          if (isAnimation && !content) {
+            content = 'GIF';
+          }
+        }
+        
+        // Add caption as content if available
+        if (update.message.caption) {
+          content = update.message.caption;
+        }
+      }
+      
+      // Handle animation messages (GIFs)
+      if (update.message.animation) {
+        const animation = update.message.animation;
+        const animationUrl = await this.getFileUrl(animation.file_id);
+        
+        if (animationUrl) {
+          attachments.push({
+            id: animation.file_id,
+            filename: animation.file_name || 'animation.mp4',
+            size: animation.file_size || 0,
+            url: animationUrl,
+            proxy_url: animationUrl,
+            content_type: animation.mime_type || 'video/mp4',
+            width: animation.width,
+            height: animation.height
+          });
+          
+          // If no content yet, add a GIF indicator
+          if (!content) {
+            content = 'GIF';
+          }
         }
         
         // Add caption as content if available

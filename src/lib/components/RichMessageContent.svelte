@@ -329,6 +329,19 @@
                 <span class="attachment-size">{formatFileSize(attachment.size)}</span>
               </div>
             </div>
+        {:else if attachment.content_type?.startsWith('video/') || (attachment.filename?.includes('animation') && attachment.content_type === 'video/mp4')}
+          <!-- Handle video attachments, especially Telegram GIFs -->
+          <div class="attachment-video">
+            <video
+              src={attachment.url}
+              autoplay
+              loop
+              muted
+              playsinline
+              controls={false}
+              style={attachment.width && attachment.height ? `max-width: ${Math.min(attachment.width, 400)}px; max-height: ${Math.min(attachment.height, 300)}px;` : 'max-width: 400px; max-height: 300px;'}
+            />
+          </div>
         {:else}
           <a href={attachment.url} target="_blank" rel="noopener noreferrer" class="attachment-file">
             <div class="file-icon">📎</div>
@@ -650,5 +663,22 @@
     height: auto;
     object-fit: contain;
     display: block;
+  }
+  
+  .attachment-video {
+    display: inline-block;
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.2);
+    margin: 0.5rem 0;
+  }
+  
+  .attachment-video video {
+    display: block;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
   }
 </style>
