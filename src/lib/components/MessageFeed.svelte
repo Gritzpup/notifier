@@ -72,44 +72,42 @@
   onMount(() => {
     scrollToBottom();
     
-    // Track if window is already focused on mount
-    let isInitiallyFocused = document.hasFocus();
-    let hasUserInteracted = false;
+    let markAsReadTimeout: number | null = null;
     
-    // Only mark as read after user has been away and comes back
+    // Mark messages as read when user clicks anywhere on the page
+    const handleClick = () => {
+      // Clear any pending timeout
+      if (markAsReadTimeout) {
+        clearTimeout(markAsReadTimeout);
+      }
+      
+      // Small delay to ensure user sees badges briefly
+      markAsReadTimeout = window.setTimeout(() => {
+        markVisibleMessagesAsRead();
+      }, 300); // 300ms delay
+    };
+    
+    // Also mark as read when window gains focus (coming back from another tab/window)
     const handleFocus = () => {
-      if (!isInitiallyFocused && hasUserInteracted) {
-        // User was away and came back
-        console.log('Window regained focus - will mark messages as read after delay');
+      if (document.hasFocus()) {
+        console.log('Window focused - marking messages as read');
         setTimeout(() => {
           markVisibleMessagesAsRead();
-        }, 1000); // 1 second delay
+        }, 500);
       }
-      hasUserInteracted = true;
     };
     
-    const handleBlur = () => {
-      isInitiallyFocused = false;
-    };
-    
+    // Add event listeners
+    window.addEventListener('click', handleClick);
     window.addEventListener('focus', handleFocus);
-    window.addEventListener('blur', handleBlur);
-    
-    // Also handle tab visibility
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && !isInitiallyFocused) {
-        console.log('Tab became visible - will mark messages as read after delay');
-        setTimeout(() => {
-          markVisibleMessagesAsRead();
-        }, 1000);
-      }
-    });
     
     // Cleanup
     return () => {
+      if (markAsReadTimeout) {
+        clearTimeout(markAsReadTimeout);
+      }
+      window.removeEventListener('click', handleClick);
       window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('blur', handleBlur);
-      document.removeEventListener('visibilitychange', () => {});
     };
   });
 </script>
