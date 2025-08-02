@@ -174,11 +174,15 @@ export class DiscordService {
         console.log('Message content:', payload.d.content);
         console.log('Embeds:', payload.d.embeds?.length || 0);
         console.log('Stickers:', payload.d.sticker_items?.length || 0);
+        console.log('Attachments:', payload.d.attachments?.length || 0);
         if (payload.d.sticker_items?.length > 0) {
           console.log('Full sticker payload:', JSON.stringify({
             sticker_items: payload.d.sticker_items,
             type: payload.d.type
           }, null, 2));
+        }
+        if (payload.d.attachments?.length > 0) {
+          console.log('Attachments:', JSON.stringify(payload.d.attachments, null, 2));
         }
         
         // Check if this is a bot message with arrival/departure information
@@ -273,6 +277,18 @@ export class DiscordService {
           fields: embed.fields
         }));
         
+        // Parse attachments
+        const attachments = payload.d.attachments?.map((attachment: any) => ({
+          id: attachment.id,
+          filename: attachment.filename,
+          size: attachment.size,
+          url: attachment.url,
+          proxy_url: attachment.proxy_url,
+          content_type: attachment.content_type,
+          width: attachment.width,
+          height: attachment.height
+        }));
+        
         // Build display content
         let displayContent = payload.d.content || '';
         if (messageType === 'user_join' || messageType === 'user_leave') {
@@ -289,6 +305,7 @@ export class DiscordService {
         console.log('Message type:', messageType);
         console.log('Stickers:', stickers?.length || 0);
         console.log('Custom emojis:', customEmojis.length);
+        console.log('Attachments:', attachments?.length || 0);
         
         messagesStore.addMessage({
           platform: 'discord',
@@ -304,7 +321,8 @@ export class DiscordService {
           isBot: payload.d.author.bot,
           stickers: stickers,
           customEmojis: customEmojis.length > 0 ? customEmojis : undefined,
-          embeds: embeds
+          embeds: embeds,
+          attachments: attachments
         });
         break;
         

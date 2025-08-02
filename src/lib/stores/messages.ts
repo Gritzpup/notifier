@@ -42,6 +42,17 @@ export interface DiscordEmbed {
   }>;
 }
 
+export interface Attachment {
+  id: string;
+  filename: string;
+  size: number;
+  url: string;
+  proxy_url: string;
+  content_type?: string;
+  width?: number;
+  height?: number;
+}
+
 export type MessageType = 'text' | 'user_join' | 'user_leave' | 'system';
 
 export interface Message {
@@ -60,6 +71,7 @@ export interface Message {
   customEmojis?: DiscordEmoji[];
   emotes?: TwitchEmote[];
   embeds?: DiscordEmbed[];
+  attachments?: Attachment[];
   isBot?: boolean;
 }
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Message, DiscordSticker, DiscordEmoji, TwitchEmote, DiscordEmbed } from '$lib/stores/messages';
+  import type { Message, DiscordSticker, DiscordEmoji, TwitchEmote, DiscordEmbed, Attachment } from '$lib/stores/messages';
   
   export let message: Message;
   
@@ -151,6 +151,15 @@
     : message.content;
     
   $: isSystemMessage = message.messageType === 'user_join' || message.messageType === 'user_leave';
+  
+  // Format file size to human readable
+  function formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
 </script>
 
 <div class="rich-content">
@@ -279,6 +288,35 @@
             </div>
           {/if}
         </div>
+      {/each}
+    </div>
+  {/if}
+  
+  {#if message.attachments && message.attachments.length > 0}
+    <div class="attachments-container">
+      {#each message.attachments as attachment}
+        {#if attachment.content_type?.startsWith('image/')}
+          <div class="attachment-image">
+            <img 
+              src={attachment.url} 
+              alt={attachment.filename}
+              loading="lazy"
+              style={attachment.width && attachment.height ? `max-width: ${Math.min(attachment.width, 400)}px; max-height: ${Math.min(attachment.height, 300)}px;` : ''}
+            />
+            <div class="attachment-info">
+              <span class="attachment-filename">{attachment.filename}</span>
+              <span class="attachment-size">{formatFileSize(attachment.size)}</span>
+            </div>
+          </div>
+        {:else}
+          <a href={attachment.url} target="_blank" rel="noopener noreferrer" class="attachment-file">
+            <div class="file-icon">📎</div>
+            <div class="file-details">
+              <span class="attachment-filename">{attachment.filename}</span>
+              <span class="attachment-size">{formatFileSize(attachment.size)}</span>
+            </div>
+          </a>
+        {/if}
       {/each}
     </div>
   {/if}
@@ -497,5 +535,85 @@
   .embed-field-value {
     font-size: 0.875rem;
     color: rgba(255, 255, 255, 0.8);
+  }
+  
+  .attachments-container {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .attachment-image {
+    display: inline-block;
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+  
+  .attachment-image img {
+    display: block;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+  
+  .attachment-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+    padding: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  
+  .attachment-image:hover .attachment-info {
+    opacity: 1;
+  }
+  
+  .attachment-file {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+  }
+  
+  .attachment-file:hover {
+    background-color: rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .file-icon {
+    font-size: 2rem;
+  }
+  
+  .file-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+  
+  .attachment-filename {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+  }
+  
+  .attachment-size {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
   }
 </style>
