@@ -20,6 +20,11 @@ export class DiscordService {
   private isDestroyed = false;
   private guildNames: Map<string, string> = new Map();
   private channelNames: Map<string, string> = new Map();
+  private isConnecting = false;
+  private lastConnectionAttempt = 0;
+  private connectionCooldown = 5000; // Start with 5 seconds
+  private maxConnectionCooldown = 300000; // Max 5 minutes
+  private authenticationFailed = false;
 
   constructor(token: string, channelFilter: string[] = []) {
     this.token = token;
@@ -27,16 +32,39 @@ export class DiscordService {
   }
 
   connect() {
-    if (this.isDestroyed) return;
+    if (this.isDestroyed || this.authenticationFailed) {
+      console.log('[Discord] Connection blocked:', this.authenticationFailed ? 'Authentication failed' : 'Service destroyed');
+      return;
+    }
     
+    // Check if we're already connecting
+    if (this.isConnecting) {
+      console.log('[Discord] Already connecting, skipping duplicate attempt');
+      return;
+    }
+    
+    // Check connection cooldown
+    const now = Date.now();
+    const timeSinceLastAttempt = now - this.lastConnectionAttempt;
+    if (timeSinceLastAttempt < this.connectionCooldown) {
+      const waitTime = Math.ceil((this.connectionCooldown - timeSinceLastAttempt) / 1000);
+      console.log(`[Discord] Connection cooldown active. Wait ${waitTime}s before reconnecting.`);
+      connectionsStore.setError('discord', `Cooldown: ${waitTime}s`);
+      return;
+    }
+    
+    this.isConnecting = true;
+    this.lastConnectionAttempt = now;
     connectionsStore.setConnecting('discord');
     
     try {
       this.ws = new WebSocket('wss://gateway.discord.gg/?v=10&encoding=json');
       
       this.ws.onopen = () => {
-        console.log('Discord WebSocket connected');
+        console.log('[Discord] WebSocket connected');
         this.reconnectAttempts = 0;
+        this.connectionCooldown = 5000; // Reset cooldown on successful connection
+        this.isConnecting = false;
       };
 
       this.ws.onmessage = (event) => {
@@ -50,12 +78,32 @@ export class DiscordService {
       };
 
       this.ws.onclose = (event) => {
-        console.log('Discord WebSocket closed:', event.code, event.reason);
+        console.log('[Discord] WebSocket closed:', event.code, event.reason);
         this.cleanup();
+        this.isConnecting = false;
         
-        if (!this.isDestroyed && this.reconnectAttempts < this.maxReconnectAttempts) {
+        // Check for authentication failure (4004)
+        if (event.code === 4004) {
+          console.error('[Discord] Authentication failed - invalid token');
+          this.authenticationFailed = true;
+          connectionsStore.setError('discord', 'Invalid token - please check your Discord bot token');
+          return;
+        }
+        
+        // Check for other unrecoverable errors
+        if (event.code === 4010 || event.code === 4011) {
+          console.error('[Discord] Unrecoverable error:', event.reason);
+          this.authenticationFailed = true;
+          connectionsStore.setError('discord', event.reason || 'Unrecoverable error');
+          return;
+        }
+        
+        if (!this.isDestroyed && !this.authenticationFailed && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
-          const delay = Math.min(this.reconnectAttempts * 2000, 10000);
+          // Exponential backoff with max limit
+          this.connectionCooldown = Math.min(this.connectionCooldown * 2, this.maxConnectionCooldown);
+          const delay = this.connectionCooldown;
+          console.log(`[Discord] Reconnecting in ${delay / 1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
           setTimeout(() => this.connect(), delay);
         } else {
           connectionsStore.disconnect('discord');
@@ -111,60 +159,32 @@ export class DiscordService {
       case 'READY':
         this.sessionId = payload.d.session_id;
         connectionsStore.setConnected('discord');
-        console.log('=== Discord READY Event ===');
-        console.log('Discord connected as:', payload.d.user.username);
-        console.log('Discord bot ID:', payload.d.user.id);
-        console.log('Discord guilds:', payload.d.guilds?.length || 0);
-        console.log('Session ID:', this.sessionId);
-        
-        // Log guild details
-        if (payload.d.guilds && payload.d.guilds.length > 0) {
-          console.log('Guild details:');
-          payload.d.guilds.forEach((guild: any) => {
-            console.log(`  - ${guild.name || 'Unavailable'} (${guild.id}) - Unavailable: ${guild.unavailable || false}`);
-          });
-        }
+        console.log('[Discord] Connected as:', payload.d.user.username);
+        console.log('[Discord] Bot in', payload.d.guilds?.length || 0, 'guilds');
         
         if (!payload.d.guilds || payload.d.guilds.length === 0) {
-          console.log('⚠️ Discord bot is not in any servers!');
-          console.log('To add the bot to your server:');
-          console.log('1. Click this link:', `https://discord.com/api/oauth2/authorize?client_id=${payload.d.user.id}&permissions=274877974528&scope=bot`);
-          console.log('2. Select your server from the dropdown');
-          console.log('3. Click "Continue" then "Authorize"');
-          console.log('4. Refresh this page after adding the bot');
-        } else {
-          console.log('Discord bot invite URL:', `https://discord.com/api/oauth2/authorize?client_id=${payload.d.user.id}&permissions=274877974528&scope=bot`);
+          console.log('[Discord] ⚠️ Bot not in any servers! Add bot:', `https://discord.com/api/oauth2/authorize?client_id=${payload.d.user.id}&permissions=274877974528&scope=bot`);
         }
         break;
         
       case 'GUILD_CREATE':
         // Cache guild and channel names
         this.guildNames.set(payload.d.id, payload.d.name);
-        console.log(`Discord bot joined guild: ${payload.d.name} (${payload.d.id})`);
-        console.log(`Guild has ${payload.d.channels?.length || 0} channels`);
+        console.log(`[Discord] Joined guild: ${payload.d.name}`);
         
-        // Debug channel structure
-        if (payload.d.channels && payload.d.channels.length > 0) {
-          console.log('First channel example:', JSON.stringify(payload.d.channels[0], null, 2));
-          
+        if (payload.d.channels) {
           payload.d.channels.forEach((channel: any) => {
-            // Only cache text channels (type 0) and voice channels (type 2)
             if (channel.type === 0 || channel.type === 2) {
               this.channelNames.set(channel.id, channel.name);
-              console.log(`Cached channel: ${channel.name} (${channel.id})`);
             }
           });
         }
-        
-        console.log(`Total guilds: ${this.guildNames.size}`);
-        console.log(`Total cached channels: ${this.channelNames.size}`);
         break;
         
       case 'GUILD_DELETE':
         const guildName = this.guildNames.get(payload.d.id) || 'Unknown';
         this.guildNames.delete(payload.d.id);
-        console.log(`Discord bot left guild: ${guildName} (${payload.d.id})`);
-        console.log(`Total guilds: ${this.guildNames.size}`);
+        console.log(`[Discord] Left guild: ${guildName}`);
         break;
         
       case 'CHANNEL_CREATE':
@@ -172,29 +192,10 @@ export class DiscordService {
         // Cache channel when it's created or updated
         if ((payload.d.type === 0 || payload.d.type === 2) && payload.d.guild_id) {
           this.channelNames.set(payload.d.id, payload.d.name);
-          console.log(`Cached channel from ${payload.t}: ${payload.d.name} (${payload.d.id})`);
         }
         break;
         
       case 'MESSAGE_CREATE':
-        console.log('=== Discord MESSAGE_CREATE event received ===');
-        console.log('Message from:', payload.d.author.username, 'in channel:', payload.d.channel_id);
-        console.log('Guild ID:', payload.d.guild_id || 'DM');
-        console.log('Is bot:', payload.d.author.bot);
-        console.log('Message content:', payload.d.content);
-        console.log('Embeds:', payload.d.embeds?.length || 0);
-        console.log('Stickers:', payload.d.sticker_items?.length || 0);
-        console.log('Attachments:', payload.d.attachments?.length || 0);
-        console.log('Channel filter active:', this.channelFilter.length > 0 ? `Yes (${this.channelFilter.join(', ')})` : 'No');
-        if (payload.d.sticker_items?.length > 0) {
-          console.log('Full sticker payload:', JSON.stringify({
-            sticker_items: payload.d.sticker_items,
-            type: payload.d.type
-          }, null, 2));
-        }
-        if (payload.d.attachments?.length > 0) {
-          console.log('Attachments:', JSON.stringify(payload.d.attachments, null, 2));
-        }
         
         // Check if this is a bot message with arrival/departure information
         let messageType: 'text' | 'user_join' | 'user_leave' | 'system' = 'text';
@@ -209,16 +210,15 @@ export class DiscordService {
           if (allText.includes('joined') || allText.includes('welcome') || allText.includes('is here') || allText.includes('has arrived')) {
             messageType = 'user_join';
             shouldProcessBotMessage = true;
-            console.log('Detected user join message');
+            // Detected user join message
           } else if (allText.includes('left') || allText.includes('goodbye') || allText.includes('has left') || allText.includes('disconnected')) {
             messageType = 'user_leave';
             shouldProcessBotMessage = true;
-            console.log('Detected user leave message');
+            // Detected user leave message
           }
           
           // Skip other bot messages
           if (!shouldProcessBotMessage) {
-            console.log('Skipping non-arrival/departure bot message');
             break;
           }
         }
@@ -237,7 +237,6 @@ export class DiscordService {
         
         // Filter by channel if specified
         if (this.channelFilter.length > 0 && !this.channelFilter.includes(payload.d.channel_id)) {
-          console.log('Message filtered out - channel not in filter list');
           break;
         }
         
@@ -252,7 +251,7 @@ export class DiscordService {
             // Discord sometimes includes channel info in messages
             // For now, we'll use the channel ID as a fallback
             channelNameOnly = `channel-${payload.d.channel_id.slice(-6)}`;
-            console.log(`Channel ${payload.d.channel_id} not in cache, using fallback name`);
+            // Channel not in cache, using fallback name
           }
           
           channelName = `${guildName} #${channelNameOnly || 'unknown'}`;
@@ -260,9 +259,6 @@ export class DiscordService {
         
         // Parse stickers - Discord sends both stickers and sticker_items
         const stickerData = payload.d.stickers || payload.d.sticker_items;
-        if (stickerData && stickerData.length > 0) {
-          console.log('Raw sticker data:', JSON.stringify(stickerData, null, 2));
-        }
         const stickers = stickerData?.map((sticker: any) => ({
           id: sticker.id,
           name: sticker.name,
@@ -340,14 +336,7 @@ export class DiscordService {
           }
         }
         
-        console.log('=== Adding message to store ===');
-        console.log('Display content:', displayContent);
-        console.log('Message type:', messageType);
-        console.log('Channel name:', channelName);
-        console.log('Is DM:', !payload.d.guild_id);
-        console.log('Stickers:', stickers?.length || 0);
-        console.log('Custom emojis:', customEmojis.length);
-        console.log('Attachments:', attachments?.length || 0);
+        // Add message to store
         
         messagesStore.addMessage({
           platform: 'discord',
@@ -370,7 +359,7 @@ export class DiscordService {
         
       case 'RESUMED':
         connectionsStore.setConnected('discord');
-        console.log('Discord session resumed');
+        console.log('[Discord] Session resumed');
         break;
     }
   }
@@ -442,6 +431,7 @@ export class DiscordService {
 
   private cleanup() {
     this.stopHeartbeat();
+    this.isConnecting = false;
     if (this.ws) {
       this.ws.close();
       this.ws = null;
