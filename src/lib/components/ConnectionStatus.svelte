@@ -35,17 +35,17 @@
   }
 </script>
 
-<div class="flex items-center justify-center gap-6 p-4 bg-gray-800 rounded-lg">
+<div class="flex items-center justify-center gap-8 p-5 bg-gray-900/50 backdrop-blur-sm rounded-xl shadow-xl border border-gray-700/30">
   {#each platforms as platform}
-    <div class="flex items-center gap-2">
-      <div class="{platform.color} w-2 h-2 rounded-full"></div>
-      <span class="text-sm font-medium">{platform.label}</span>
-      <span class="text-lg {getStatusColor($connectionsStore[platform.name].status)}">
+    <div class="flex items-center gap-3 px-4 py-2 bg-gray-800/30 rounded-lg hover:bg-gray-700/30 transition-all duration-200">
+      <div class="{platform.color} w-3 h-3 rounded-full shadow-lg"></div>
+      <span class="text-base font-semibold text-gray-200">{platform.label}</span>
+      <span class="text-xl {getStatusColor($connectionsStore[platform.name].status)}">
         {getStatusIcon($connectionsStore[platform.name].status)}
       </span>
       {#if $connectionsStore[platform.name].error}
-        <span class="text-xs text-red-400" title={$connectionsStore[platform.name].error}>
-          !
+        <span class="text-sm text-red-400 font-medium" title={$connectionsStore[platform.name].error}>
+          ⚠️
         </span>
       {/if}
     </div>

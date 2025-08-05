@@ -7,7 +7,6 @@
   import { TelegramService } from '$lib/services/telegram';
   import { TwitchService } from '$lib/services/twitch';
   import { config, hasDiscordConfig, hasTelegramConfig, hasTwitchConfig } from '$lib/config';
-  import { initializeSocket, disconnectSocket } from '$lib/services/socket';
   import { page } from '$app/stores';
   
   let discordService: DiscordService | null = null;
@@ -17,8 +16,6 @@
   let deferredPrompt: any = null;
   
   onMount(() => {
-    // Initialize socket connection
-    initializeSocket();
     
     
     // Auto-connect services based on env config
@@ -39,10 +36,12 @@
   
   onDestroy(() => {
     disconnectAll();
-    disconnectSocket();
   });
   
   function connectServices() {
+    // Disconnect existing services first to prevent duplicates
+    disconnectAll();
+    
     if (hasDiscordConfig()) {
       discordService = new DiscordService(config.discord.token, config.discord.channels);
       discordService.connect();
@@ -83,21 +82,23 @@
   }
 </script>
 
-<div class="min-h-screen bg-gray-900 text-gray-100">
+<div class="h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-100 flex flex-col">
   <!-- Header -->
-  <header class="bg-gray-800 border-b border-gray-700">
-    <div class="max-w-7xl mx-auto px-4 py-4">
+  <header class="bg-gray-900/80 backdrop-blur-lg border-b border-gray-700/50 shadow-2xl">
+    <div class="max-w-7xl mx-auto px-6 py-5">
       <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold flex items-center gap-2">
-          <span class="text-3xl">🔔</span>
-          Notification Hub
+        <h1 class="text-3xl font-bold flex items-center gap-3">
+          <span class="text-4xl">🔔</span>
+          <span class="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            Notification Hub
+          </span>
         </h1>
         
         <div class="flex items-center gap-4">
           {#if showInstallPrompt}
             <button
               on:click={handleInstall}
-              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors"
+              class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-base font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               Install App
             </button>
@@ -105,33 +106,33 @@
           
           <a
             href="/settings"
-            class="p-2 text-gray-400 hover:text-white transition-colors"
+            class="p-3 text-gray-400 hover:text-white transition-all duration-200 hover:bg-gray-800/50 rounded-lg"
             title="Settings"
           >
-            ⚙️
+            <span class="text-2xl">⚙️</span>
           </a>
         </div>
       </div>
     </div>
   </header>
   
-  <main class="max-w-7xl mx-auto px-4 py-6">
-    <div class="space-y-6">
+  <main class="flex-1 overflow-hidden">
+    <div class="max-w-7xl mx-auto h-full px-6 py-6 flex flex-col gap-6">
       <!-- Connection status -->
       <ConnectionStatus />
       
       <!-- Service status info -->
       {#if !hasDiscordConfig() && !hasTelegramConfig() && !hasTwitchConfig()}
-        <div class="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-4 text-yellow-300">
-          <p class="font-medium">No services configured</p>
-          <p class="text-sm mt-1">
+        <div class="bg-yellow-500/20 backdrop-blur-md border border-yellow-500/50 rounded-xl p-5 text-yellow-300 shadow-xl">
+          <p class="font-semibold text-lg">No services configured</p>
+          <p class="text-base mt-2 opacity-90">
             Add your credentials to the .env file and restart the dev server.
           </p>
         </div>
       {/if}
       
       <!-- Message feed -->
-      <div class="bg-gray-800 rounded-lg p-6 h-[calc(100vh-16rem)]">
+      <div class="flex-1 bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border border-gray-700/30 overflow-hidden">
         <MessageFeed />
       </div>
     </div>

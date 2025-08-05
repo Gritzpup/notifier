@@ -1,5 +1,7 @@
 import { messagesStore } from '$lib/stores/messages';
 import { connectionsStore } from '$lib/stores/connections';
+import { broadcastService } from './broadcast';
+import { leaderElection } from './leader-election';
 
 interface TelegramUpdate {
   update_id: number;
@@ -106,16 +108,66 @@ export class TelegramService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private userPhotoCache = new Map<number, string | null>(); // Cache user photos
+  private isLeaderTab = false;
 
   constructor(token: string, groupFilter: string[] = []) {
     this.token = token;
     this.groupFilter = groupFilter;
+    
+    // Listen for messages broadcast from other tabs
+    broadcastService.on('telegram-message', (messageData) => {
+      // Add message to store if we're not the leader (leader already added it)
+      if (!this.isLeaderTab) {
+        messagesStore.addMessage(messageData);
+      }
+    });
+    
+    // Listen for connection status updates from leader
+    broadcastService.on('telegram-status', (status) => {
+      if (!this.isLeaderTab) {
+        if (status.connected) {
+          connectionsStore.setConnected('telegram');
+        } else if (status.error) {
+          connectionsStore.setError('telegram', status.error);
+        } else {
+          connectionsStore.setConnecting('telegram');
+        }
+      }
+    });
   }
 
   async connect() {
-    if (this.isDestroyed || this.isPolling) return;
+    if (this.isDestroyed) return;
+    
+    // Start leader election
+    leaderElection.start((isLeader) => {
+      this.isLeaderTab = isLeader;
+      
+      if (isLeader && !this.isPolling && !this.isDestroyed) {
+        console.log('[Telegram] This tab is now the leader, starting polling');
+        this.startPolling();
+      } else if (!isLeader && this.isPolling) {
+        console.log('[Telegram] This tab lost leadership, stopping polling');
+        this.stopPolling();
+      }
+    });
+    
+    // If we're already the leader, start polling
+    if (leaderElection.getIsLeader()) {
+      this.isLeaderTab = true;
+      this.startPolling();
+    } else {
+      // Not the leader, just show as connected if another tab is polling
+      connectionsStore.setConnecting('telegram');
+      // The leader tab will broadcast the actual status
+    }
+  }
+  
+  private async startPolling() {
+    if (this.isPolling || this.isDestroyed) return;
     
     connectionsStore.setConnecting('telegram');
+    broadcastService.send('telegram-status', { connected: false });
     this.isPolling = true;
     
     try {
@@ -126,27 +178,39 @@ export class TelegramService {
       }
       
       const meData = await meResponse.json();
-      console.log('Telegram connected as:', meData.result.username);
+      console.log('[Telegram] Connected as:', meData.result.username);
       connectionsStore.setConnected('telegram');
+      broadcastService.send('telegram-status', { connected: true });
       this.reconnectAttempts = 0;
       
       // Start polling
       this.poll();
     } catch (error) {
-      console.error('Failed to connect to Telegram:', error);
-      connectionsStore.setError('telegram', 'Failed to connect');
+      console.error('[Telegram] Failed to connect:', error);
+      const errorMsg = 'Failed to connect';
+      connectionsStore.setError('telegram', errorMsg);
+      broadcastService.send('telegram-status', { error: errorMsg });
       this.isPolling = false;
       
       if (!this.isDestroyed && this.reconnectAttempts < this.maxReconnectAttempts) {
         this.reconnectAttempts++;
         const delay = Math.min(this.reconnectAttempts * 2000, 10000);
-        this.pollingTimeout = window.setTimeout(() => this.connect(), delay);
+        this.pollingTimeout = window.setTimeout(() => this.startPolling(), delay);
       }
+    }
+  }
+  
+  private stopPolling() {
+    this.isPolling = false;
+    
+    if (this.pollingTimeout) {
+      clearTimeout(this.pollingTimeout);
+      this.pollingTimeout = null;
     }
   }
 
   private async poll() {
-    if (this.isDestroyed || !this.isPolling) return;
+    if (this.isDestroyed || !this.isPolling || !this.isLeaderTab) return;
     
     try {
       const response = await fetch(
@@ -167,14 +231,14 @@ export class TelegramService {
         }
       }
       
-      // Continue polling
-      if (this.isPolling && !this.isDestroyed) {
+      // Continue polling only if we're still the leader
+      if (this.isPolling && !this.isDestroyed && this.isLeaderTab) {
         this.poll();
       }
     } catch (error) {
-      console.error('Telegram polling error:', error);
+      console.error('[Telegram] Polling error:', error);
       
-      if (!this.isDestroyed) {
+      if (!this.isDestroyed && this.isLeaderTab) {
         // Retry with exponential backoff
         const delay = Math.min(Math.pow(2, Math.min(this.reconnectAttempts, 5)) * 1000, 30000);
         this.pollingTimeout = window.setTimeout(() => this.poll(), delay);
@@ -465,7 +529,7 @@ export class TelegramService {
       
       // Only add message if there's content or attachments
       if (content || attachments.length > 0) {
-        messagesStore.addMessage({
+        const messageData = {
           platform: 'telegram',
           author: authorName,
           content: content,
@@ -475,9 +539,15 @@ export class TelegramService {
           channelId: chat.id.toString(),
           channelName: channelName,
           isDM: isDM
-        });
+        };
         
-        console.log(`Telegram message from ${authorName} in ${channelName}`);
+        // Add to local store
+        messagesStore.addMessage(messageData);
+        
+        // Broadcast to other tabs
+        broadcastService.send('telegram-message', messageData);
+        
+        console.log(`[Telegram] Message from ${authorName} in ${channelName}`);
         if (attachments.length > 0) {
           console.log(`  with ${attachments.length} attachment(s)`);
         }
@@ -488,11 +558,19 @@ export class TelegramService {
   disconnect() {
     this.isDestroyed = true;
     this.isPolling = false;
+    this.isLeaderTab = false;
     
     if (this.pollingTimeout) {
       clearTimeout(this.pollingTimeout);
       this.pollingTimeout = null;
     }
+    
+    // Stop leader election
+    leaderElection.stop();
+    
+    // Clean up broadcast listeners
+    broadcastService.off('telegram-message');
+    broadcastService.off('telegram-status');
     
     connectionsStore.disconnect('telegram');
   }

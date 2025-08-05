@@ -118,19 +118,19 @@
 
 <div class="flex flex-col h-full">
   <!-- Filter tabs -->
-  <div class="flex items-center gap-1 p-2 bg-gray-800 rounded-lg mb-4">
+  <div class="flex items-center gap-2 p-3 bg-gray-900/50 backdrop-blur-sm rounded-xl mb-6 shadow-xl border border-gray-700/30">
     {#each filterOptions as option}
       <button
-        class="px-4 py-2 text-sm font-medium rounded-md transition-colors
+        class="px-6 py-3 text-base font-semibold rounded-lg transition-all duration-200 transform hover:scale-105
                {filter === option.value 
-                 ? 'bg-gray-700 text-white' 
-                 : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}"
+                 ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                 : 'text-gray-300 hover:text-white hover:bg-gray-700/50'}"
         on:click={() => setFilter(option.value)}
       >
         <span class={option.color}>
           {option.label}
           {#if badges[option.value] > 0}
-            <span class="ml-1 px-1.5 py-0.5 text-xs bg-blue-500 text-white rounded-full">
+            <span class="ml-2 px-2.5 py-1 text-sm bg-red-500 text-white rounded-full font-bold shadow-md">
               {badges[option.value]}
             </span>
           {/if}
@@ -141,7 +141,7 @@
     {#if $filteredMessages.length > 0}
       <div class="ml-auto">
         <button
-          class="px-3 py-1 text-xs text-gray-400 hover:text-white transition-colors"
+          class="px-5 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-lg transition-all duration-200 font-medium"
           on:click={() => messagesStore.markAllAsRead(filter === 'all' ? undefined : filter)}
         >
           Mark all as read
@@ -151,11 +151,11 @@
   </div>
   
   <!-- Messages list -->
-  <div class="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin" bind:this={messageContainer}>
+  <div class="flex-1 overflow-y-auto space-y-4 pr-4" bind:this={messageContainer}>
     {#if $filteredMessages.length === 0}
-      <div class="text-center py-12 text-gray-500">
-        <p class="text-lg mb-2">No messages yet</p>
-        <p class="text-sm">Messages will appear here when received</p>
+      <div class="text-center py-20 text-gray-400">
+        <p class="text-2xl mb-3 font-semibold">No messages yet</p>
+        <p class="text-lg opacity-75">Messages will appear here when received</p>
       </div>
     {:else}
       {#each [...$filteredMessages].reverse() as message (message.id)}
@@ -164,29 +164,3 @@
     {/if}
   </div>
 </div>
-
-<style>
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: #4b5563 #1f2937;
-    scroll-behavior: smooth;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: #1f2937;
-    border-radius: 4px;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #4b5563;
-    border-radius: 4px;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #6b7280;
-  }
-</style>

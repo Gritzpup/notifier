@@ -13,10 +13,10 @@
     twitch: 'border-twitch'
   }[message.platform];
   
-  $: platformBg = {
-    discord: 'bg-discord/10',
-    telegram: 'bg-telegram/10',
-    twitch: 'bg-twitch/10'
+  $: platformGradient = {
+    discord: 'from-discord/20',
+    telegram: 'from-telegram/20',
+    twitch: 'from-twitch/20'
   }[message.platform];
   
   function formatTime(date: Date) {
@@ -32,45 +32,45 @@
 </script>
 
 <div 
-  class="p-4 rounded-lg border-l-4 {platformColor} {platformBg} transition-all hover:bg-gray-800/50 cursor-pointer {message.isRead ? 'opacity-75' : ''}"
+  class="p-6 rounded-2xl border-l-4 {platformColor} bg-gradient-to-r {platformGradient} to-gray-800/40 backdrop-blur-md transition-all duration-300 hover:bg-gray-700/50 cursor-pointer {message.isRead ? 'opacity-60' : ''} shadow-2xl hover:shadow-3xl border border-gray-700/20 hover:border-gray-600/30"
   on:click={markAsRead}
   on:keydown={(e) => e.key === 'Enter' && markAsRead()}
   role="button"
   tabindex="0"
   in:fly={{ y: -30, duration: 500, easing: cubicOut, opacity: 0 }}
 >
-  <div class="flex items-start justify-between gap-3">
+  <div class="flex items-start justify-between gap-4">
     <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-2 mb-1">
-        <span class="text-xs font-medium uppercase text-gray-400">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="text-sm font-bold uppercase text-gray-300">
           {message.platform}
         </span>
         {#if message.channelName}
-          <span class="text-xs text-gray-500">• {message.channelName}</span>
+          <span class="text-sm text-gray-400">• {message.channelName}</span>
         {/if}
-        <span class="text-xs text-gray-500">• {formatTime(message.timestamp)}</span>
+        <span class="text-sm text-gray-400">• {formatTime(message.timestamp)}</span>
         {#if !message.isRead}
-          <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+          <span class="w-3 h-3 bg-blue-500 rounded-full animate-pulse shadow-lg"></span>
         {/if}
       </div>
       
-      <div class="flex items-start gap-3">
+      <div class="flex items-start gap-4">
         {#if message.avatarUrl}
           <img 
             src={message.avatarUrl} 
             alt={message.author}
-            class="w-8 h-8 rounded-full"
+            class="w-12 h-12 rounded-full shadow-xl border-2 border-gray-600/30"
           />
         {/if}
         
         <div class="flex-1">
-          <p class="font-semibold text-sm mb-1">
+          <p class="font-bold text-lg mb-2 text-gray-100">
             {message.author}
             {#if message.isBot}
-              <span class="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded ml-1">BOT</span>
+              <span class="text-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white px-2 py-1 rounded-md ml-2 font-medium shadow-md">BOT</span>
             {/if}
           </p>
-          <div class="text-sm text-gray-300">
+          <div class="text-base text-gray-200 leading-relaxed">
             <RichMessageContent {message} />
           </div>
         </div>
