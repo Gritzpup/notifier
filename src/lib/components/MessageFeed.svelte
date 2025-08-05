@@ -15,24 +15,14 @@
     all: $unreadCount.total,
     discord: $unreadCount.discord,
     telegram: $unreadCount.telegram,
-    twitch: $unreadCount.twitch,
-    'all-dms': $unreadCount.allDMs,
-    'discord-dms': $unreadCount.discordDMs,
-    'telegram-dms': $unreadCount.telegramDMs,
-    'twitch-dms': $unreadCount.twitchDMs
+    twitch: $unreadCount.twitch
   };
   
   const filterOptions: { value: FilterType; label: string; color?: string; isDM?: boolean }[] = [
-    // Channel messages
     { value: 'all', label: 'All' },
     { value: 'discord', label: 'Discord', color: 'text-discord' },
     { value: 'telegram', label: 'Telegram', color: 'text-telegram' },
-    { value: 'twitch', label: 'Twitch', color: 'text-twitch' },
-    // DMs
-    { value: 'all-dms', label: 'All DMs', isDM: true },
-    { value: 'discord-dms', label: 'Discord DMs', color: 'text-discord', isDM: true },
-    { value: 'telegram-dms', label: 'Telegram DMs', color: 'text-telegram', isDM: true },
-    { value: 'twitch-dms', label: 'Twitch DMs', color: 'text-twitch', isDM: true }
+    { value: 'twitch', label: 'Twitch', color: 'text-twitch' }
   ];
   
   function setFilter(newFilter: FilterType) {
@@ -56,17 +46,17 @@
     })));
   }
   
-  async function scrollToBottom() {
+  async function scrollToTop() {
     await tick();
     if (messageContainer) {
-      messageContainer.scrollTop = messageContainer.scrollHeight;
+      messageContainer.scrollTop = 0;
     }
   }
   
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to top when new messages arrive
   afterUpdate(() => {
     if ($filteredMessages.length > previousMessageCount) {
-      scrollToBottom();
+      scrollToTop();
     }
     previousMessageCount = $filteredMessages.length;
   });
@@ -84,7 +74,7 @@
   }
   
   onMount(() => {
-    scrollToBottom();
+    scrollToTop();
     
     let markAsReadTimeout: number | null = null;
     
@@ -168,7 +158,7 @@
         <p class="text-sm">Messages will appear here when received</p>
       </div>
     {:else}
-      {#each $filteredMessages as message (message.id)}
+      {#each [...$filteredMessages].reverse() as message (message.id)}
         <MessageCard {message} />
       {/each}
     {/if}

@@ -7,7 +7,7 @@
   import { TelegramService } from '$lib/services/telegram';
   import { TwitchService } from '$lib/services/twitch';
   import { config, hasDiscordConfig, hasTelegramConfig, hasTwitchConfig } from '$lib/config';
-  import { initializeSocket, startDMPolling, disconnectSocket } from '$lib/services/socket';
+  import { initializeSocket, disconnectSocket } from '$lib/services/socket';
   import { page } from '$app/stores';
   
   let discordService: DiscordService | null = null;
@@ -15,30 +15,11 @@
   let twitchService: TwitchService | null = null;
   let showInstallPrompt = false;
   let deferredPrompt: any = null;
-  let discordAccessToken: string | null = null;
-  let isDiscordOAuthConnected = false;
   
   onMount(() => {
     // Initialize socket connection
     initializeSocket();
     
-    // Check for OAuth callback
-    const urlParams = new URLSearchParams(window.location.search);
-    const accessToken = urlParams.get('access_token');
-    const error = urlParams.get('error');
-    
-    if (error) {
-      console.error('OAuth error:', error);
-      alert(`Discord OAuth failed: ${error}`);
-      // Clean URL
-      window.history.replaceState({}, document.title, '/');
-    } else if (accessToken) {
-      discordAccessToken = accessToken;
-      isDiscordOAuthConnected = true;
-      startDMPolling(accessToken);
-      // Clean URL
-      window.history.replaceState({}, document.title, '/');
-    }
     
     // Auto-connect services based on env config
     connectServices();
@@ -113,20 +94,6 @@
         </h1>
         
         <div class="flex items-center gap-4">
-          {#if !isDiscordOAuthConnected}
-            <a
-              href="http://localhost:3001/auth/discord"
-              class="px-4 py-2 bg-discord hover:bg-discord/80 text-white text-sm font-medium rounded-md transition-colors flex items-center gap-2"
-            >
-              <span>🔓</span>
-              Connect Discord DMs
-            </a>
-          {:else}
-            <div class="px-3 py-1 bg-green-600/20 text-green-400 text-sm rounded-md">
-              Discord DMs Connected
-            </div>
-          {/if}
-          
           {#if showInstallPrompt}
             <button
               on:click={handleInstall}

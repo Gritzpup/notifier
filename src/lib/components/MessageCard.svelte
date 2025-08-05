@@ -2,6 +2,8 @@
   import type { Message } from '$lib/stores/messages';
   import { messagesStore } from '$lib/stores/messages';
   import RichMessageContent from './RichMessageContent.svelte';
+  import { fly, scale } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   
   export let message: Message;
   
@@ -18,17 +20,8 @@
   }[message.platform];
   
   function formatTime(date: Date) {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    
-    return date.toLocaleDateString();
+    // Format: "3:45:32 PM" or "15:45:32" based on system locale
+    return date.toLocaleTimeString();
   }
   
   function markAsRead() {
@@ -44,6 +37,7 @@
   on:keydown={(e) => e.key === 'Enter' && markAsRead()}
   role="button"
   tabindex="0"
+  in:fly={{ y: -30, duration: 500, easing: cubicOut, opacity: 0 }}
 >
   <div class="flex items-start justify-between gap-3">
     <div class="flex-1 min-w-0">
@@ -56,7 +50,7 @@
         {/if}
         <span class="text-xs text-gray-500">• {formatTime(message.timestamp)}</span>
         {#if !message.isRead}
-          <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+          <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
         {/if}
       </div>
       
@@ -84,3 +78,21 @@
     </div>
   </div>
 </div>
+
+<style>
+  @keyframes messageGlow {
+    0% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+  }
+  
+  div[role="button"]:not(.opacity-75) {
+    animation: messageGlow 1s ease-out;
+  }
+</style>
