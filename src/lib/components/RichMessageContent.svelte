@@ -164,13 +164,18 @@
     return null;
   }
   
-  $: parsedContent = message.platform === 'discord' 
-    ? parseDiscordContent(message.content, message.customEmojis)
-    : message.platform === 'twitch'
-    ? parseTwitchContent(message.content, message.emotes)
-    : message.platform === 'telegram'
-    ? parseTelegramContent(message.content, message.telegramCustomEmojis)
-    : message.content;
+  $: parsedContent = (() => {
+    let content = message.platform === 'discord' 
+      ? parseDiscordContent(message.content, message.customEmojis)
+      : message.platform === 'twitch'
+      ? parseTwitchContent(message.content, message.emotes)
+      : message.platform === 'telegram'
+      ? parseTelegramContent(message.content, message.telegramCustomEmojis)
+      : message.content;
+    
+    // Parse YouTube links for all platforms
+    return parseYouTubeLinks(content);
+  })();
     
   $: isSystemMessage = message.messageType === 'user_join' || message.messageType === 'user_leave';
   
@@ -181,6 +186,24 @@
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+  
+  // Parse YouTube URLs and convert to embeds
+  function parseYouTubeLinks(content: string): string {
+    // Regex to match YouTube URLs
+    const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:\S*)?/g;
+    
+    return content.replace(youtubeRegex, (match, videoId) => {
+      return `<div class="youtube-embed-container">
+        <iframe 
+          src="https://www.youtube.com/embed/${videoId}" 
+          frameborder="0" 
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+          allowfullscreen
+          loading="lazy"
+        ></iframe>
+      </div>`;
+    });
   }
 </script>
 
@@ -763,6 +786,28 @@
     width: auto;
     height: auto;
     object-fit: contain;
+    border-radius: 8px;
+  }
+  
+  :global(.youtube-embed-container) {
+    position: relative;
+    width: 100%;
+    max-width: 280px;
+    margin: 1rem 0;
+    padding-top: 56.25%; /* 16:9 aspect ratio */
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+  
+  :global(.youtube-embed-container iframe) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
     border-radius: 8px;
   }
 </style>
