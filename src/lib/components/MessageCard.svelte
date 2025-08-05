@@ -168,6 +168,6 @@
   }
   
   .message-card:not(.opacity-60) {
-    animation: messageGlow 5s ease-out forwards;
+    animation: messageGlow 10s ease-out forwards;
   }
 </style>

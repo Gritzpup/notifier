@@ -54,7 +54,10 @@ export class TwitchService {
       };
 
       this.ws.onmessage = (event) => {
-        console.log('[Twitch] Raw message:', event.data);
+        // Don't log whispers for privacy
+        if (!event.data.includes('WHISPER')) {
+          console.log('[Twitch] Raw message:', event.data);
+        }
         this.handleMessage(event.data);
       };
 
@@ -183,6 +186,10 @@ export class TwitchService {
             console.error('[Twitch] Authentication failed! Check your OAuth token');
             connectionsStore.setError('twitch', 'Authentication failed');
           }
+          break;
+          
+        case 'WHISPER':
+          // Silently ignore whispers for privacy
           break;
           
         default:
