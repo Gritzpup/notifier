@@ -5,10 +5,56 @@
 @layer base {
   :root {
     color-scheme: dark;
+    
+    /* Typography variables for better readability */
+    --font-size-xs: 0.875rem;  /* 14px */
+    --font-size-sm: 0.9375rem; /* 15px */
+    --font-size-base: 1.0625rem; /* 17px - optimal for body text */
+    --font-size-lg: 1.1875rem; /* 19px */
+    --font-size-xl: 1.375rem;  /* 22px */
+    
+    /* Line heights for readability */
+    --line-height-tight: 1.4;
+    --line-height-base: 1.65;  /* Optimal for body text */
+    --line-height-relaxed: 1.8;
+    
+    /* Colors with better contrast */
+    --color-text-primary: #E8E8E8;    /* ~91% white - softer than pure white */
+    --color-text-secondary: #B3B3B3;  /* ~70% white - better contrast */
+    --color-text-muted: #8B8B8B;      /* ~55% white - for timestamps */
+    --color-bg-primary: #0F0F0F;      /* Not pure black */
+    --color-bg-secondary: #1A1A1A;    /* Slightly lighter for cards */
+    --color-bg-hover: #232323;        /* Hover state */
+  }
+  
+  /* Global font settings */
+  body {
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-base);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'kern' 1;
+    letter-spacing: 0.01em; /* Slight letter spacing for readability */
+  }
+  
+  /* Improved text selection */
+  ::selection {
+    background-color: rgba(59, 130, 246, 0.3);
+    color: #FFFFFF;
   }
   
   * {
     @apply border-gray-700;
+  }
+  
+  /* Responsive font sizing */
+  @media (max-width: 640px) {
+    :root {
+      --font-size-base: 1rem; /* 16px on mobile */
+    }
   }
   
   /* Hide scrollbar while keeping scroll functionality */

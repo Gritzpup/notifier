@@ -82,14 +82,14 @@
   }
 </script>
 
-<div class="h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-100 flex flex-col">
+<div class="h-screen flex flex-col">
   <!-- Header -->
-  <header class="bg-gray-900/80 backdrop-blur-lg border-b border-gray-700/50 shadow-2xl">
+  <header class="header-bar">
     <div class="max-w-7xl mx-auto px-6 py-5">
       <div class="flex items-center justify-between">
-        <h1 class="text-3xl font-bold flex items-center gap-3">
+        <h1 class="flex items-center gap-3">
           <span class="text-4xl">🔔</span>
-          <span class="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <span class="header-title">
             Notification Hub
           </span>
         </h1>
@@ -132,9 +132,45 @@
       {/if}
       
       <!-- Message feed -->
-      <div class="flex-1 bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border border-gray-700/30 overflow-hidden">
+      <div class="message-feed-container">
         <MessageFeed />
       </div>
     </div>
   </main>
 </div>
+
+<style>
+  .header-bar {
+    background-color: rgba(15, 15, 15, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  }
+  
+  .header-title {
+    font-size: 1.875rem; /* 30px */
+    font-weight: 700;
+    background: linear-gradient(135deg, #60A5FA 0%, #A78BFA 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .message-feed-container {
+    flex: 1;
+    background-color: rgba(26, 26, 26, 0.5);
+    backdrop-filter: blur(8px);
+    border-radius: 1rem;
+    padding: 2rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    overflow: hidden;
+  }
+  
+  @media (max-width: 768px) {
+    .message-feed-container {
+      padding: 1rem;
+      border-radius: 0.75rem;
+    }
+  }
+</style>

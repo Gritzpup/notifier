@@ -141,7 +141,7 @@
     {#if $filteredMessages.length > 0}
       <div class="ml-auto">
         <button
-          class="px-5 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-lg transition-all duration-200 font-medium"
+          class="mark-all-read-btn px-5 py-2 hover:bg-gray-700/50 rounded-lg transition-all duration-200"
           on:click={() => messagesStore.markAllAsRead(filter === 'all' ? undefined : filter)}
         >
           Mark all as read
@@ -153,9 +153,9 @@
   <!-- Messages list -->
   <div class="flex-1 overflow-y-auto space-y-4 pr-4" bind:this={messageContainer}>
     {#if $filteredMessages.length === 0}
-      <div class="text-center py-20 text-gray-400">
-        <p class="text-2xl mb-3 font-semibold">No messages yet</p>
-        <p class="text-lg opacity-75">Messages will appear here when received</p>
+      <div class="empty-state">
+        <p class="empty-title">No messages yet</p>
+        <p class="empty-subtitle">Messages will appear here when received</p>
       </div>
     {:else}
       {#each [...$filteredMessages].reverse() as message (message.id)}
@@ -164,3 +164,34 @@
     {/if}
   </div>
 </div>
+
+<style>
+  .empty-state {
+    text-align: center;
+    padding: 5rem 0;
+  }
+  
+  .empty-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    margin-bottom: 0.75rem;
+  }
+  
+  .empty-subtitle {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-muted);
+    opacity: 0.75;
+  }
+  
+  /* Improve tab button styling */
+  :global(.mark-all-read-btn) {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+  }
+  
+  :global(.mark-all-read-btn:hover) {
+    color: var(--color-text-primary);
+  }
+</style>
