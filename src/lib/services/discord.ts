@@ -341,6 +341,11 @@ export class DiscordService {
         
         // Handle reply to message
         let replyTo = undefined;
+        if (payload.d.message_reference) {
+          console.log('[Discord] Message has reference:', payload.d.message_reference);
+          console.log('[Discord] Referenced message data:', payload.d.referenced_message);
+        }
+        
         if (payload.d.referenced_message) {
           const replyMsg = payload.d.referenced_message;
           const replyAuthor = replyMsg.author?.username || 'Unknown';
@@ -350,6 +355,7 @@ export class DiscordService {
             author: replyAuthor,
             content: replyContent.length > 100 ? replyContent.substring(0, 100) + '...' : replyContent
           };
+          console.log('[Discord] Reply context:', replyTo);
         }
         
         // Add message to store
