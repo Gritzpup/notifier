@@ -25,6 +25,7 @@ export class DiscordService {
   private connectionCooldown = 5000; // Start with 5 seconds
   private maxConnectionCooldown = 300000; // Max 5 minutes
   private authenticationFailed = false;
+  private authenticatedUserId: string | null = null;
 
   constructor(token: string, channelFilter: string[] = []) {
     this.token = token;
@@ -158,6 +159,7 @@ export class DiscordService {
     switch (payload.t) {
       case 'READY':
         this.sessionId = payload.d.session_id;
+        this.authenticatedUserId = payload.d.user.id;
         connectionsStore.setConnected('discord');
         console.log('[Discord] Connected as:', payload.d.user.username);
         console.log('[Discord] Bot in', payload.d.guilds?.length || 0, 'guilds');
@@ -196,6 +198,11 @@ export class DiscordService {
         break;
         
       case 'MESSAGE_CREATE':
+        // Skip messages from gritzpup (your personal account)
+        if (payload.d.author.username.toLowerCase() === 'gritzpup') {
+          console.log('[Discord] Skipping message from gritzpup');
+          break;
+        }
         
         // Check if this is a bot message with arrival/departure information
         let messageType: 'text' | 'user_join' | 'user_leave' | 'system' = 'text';
@@ -361,6 +368,50 @@ export class DiscordService {
         connectionsStore.setConnected('discord');
         console.log('[Discord] Session resumed');
         break;
+        
+      case 'GUILD_MEMBER_ADD':
+        console.log(`[Discord] Member joined: ${payload.d.user.username} in guild ${payload.d.guild_id}`);
+        
+        // Get guild name
+        const joinGuildName = this.guildNames.get(payload.d.guild_id) || 'Unknown Server';
+        
+        // Create system message for member join
+        messagesStore.addMessage({
+          platform: 'discord',
+          author: 'System',
+          content: `A wild ${payload.d.user.username} appeared!`,
+          avatarUrl: payload.d.user.avatar 
+            ? `https://cdn.discordapp.com/avatars/${payload.d.user.id}/${payload.d.user.avatar}.png`
+            : undefined,
+          channelId: payload.d.guild_id,
+          channelName: joinGuildName,
+          messageType: 'user_join',
+          isDM: false,
+          isBot: payload.d.user.bot
+        });
+        break;
+        
+      case 'GUILD_MEMBER_REMOVE':
+        console.log(`[Discord] Member left: ${payload.d.user.username} from guild ${payload.d.guild_id}`);
+        
+        // Get guild name
+        const leaveGuildName = this.guildNames.get(payload.d.guild_id) || 'Unknown Server';
+        
+        // Create system message for member leave
+        messagesStore.addMessage({
+          platform: 'discord',
+          author: 'System',
+          content: `${payload.d.user.username} has left the server`,
+          avatarUrl: payload.d.user.avatar 
+            ? `https://cdn.discordapp.com/avatars/${payload.d.user.id}/${payload.d.user.avatar}.png`
+            : undefined,
+          channelId: payload.d.guild_id,
+          channelName: leaveGuildName,
+          messageType: 'user_leave',
+          isDM: false,
+          isBot: payload.d.user.bot
+        });
+        break;
     }
   }
 
@@ -369,7 +420,7 @@ export class DiscordService {
       op: 2,
       d: {
         token: this.token,
-        intents: 1 | 512 | 1024 | 32768, // GUILDS + GUILD_MESSAGES + DIRECT_MESSAGES + MESSAGE_CONTENT
+        intents: 1 | 2 | 512 | 1024 | 32768, // GUILDS + GUILD_MEMBERS + GUILD_MESSAGES + DIRECT_MESSAGES + MESSAGE_CONTENT
         properties: {
           browser: 'Notification Hub',
           device: 'Notification Hub',

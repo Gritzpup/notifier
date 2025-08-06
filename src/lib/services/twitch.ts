@@ -146,10 +146,13 @@ export class TwitchService {
           break;
           
         case 'PRIVMSG':
-          console.log(`[Twitch] Chat message from ${parsed.nick} in ${parsed.channel}: ${parsed.message}`);
-          console.log('[Twitch] Message tags:', parsed.tags);
-          
           if (parsed.nick && parsed.channel && parsed.message) {
+            // Skip messages from self
+            if (parsed.nick === this.credentials.username) {
+              console.log('[Twitch] Skipping own message');
+              break;
+            }
+            
             // Check if this is a relayed message from another platform
             const relayPrefixes = ['[Discord]', '[Telegram]'];
             const isRelayedMessage = relayPrefixes.some(prefix => 
@@ -160,6 +163,10 @@ export class TwitchService {
               console.log('[Twitch] Skipping relayed message:', parsed.message.substring(0, 50) + '...');
               break;
             }
+            
+            // Log the message only if it's not filtered
+            console.log(`[Twitch] Chat message from ${parsed.nick} in ${parsed.channel}: ${parsed.message}`);
+            console.log('[Twitch] Message tags:', parsed.tags);
             
             // Parse emotes from tags
             const emotes = this.parseEmotesFromTags(parsed.tags.emotes, parsed.message);
