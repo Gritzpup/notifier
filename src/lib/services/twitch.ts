@@ -147,12 +147,6 @@ export class TwitchService {
           
         case 'PRIVMSG':
           if (parsed.nick && parsed.channel && parsed.message) {
-            // Skip messages from self
-            if (parsed.nick === this.credentials.username) {
-              console.log('[Twitch] Skipping own message');
-              break;
-            }
-            
             // Check if this is a relayed message from another platform
             const relayPrefixes = ['[Discord]', '[Telegram]'];
             const isRelayedMessage = relayPrefixes.some(prefix => 
@@ -161,6 +155,13 @@ export class TwitchService {
             
             if (isRelayedMessage) {
               console.log('[Twitch] Skipping relayed message:', parsed.message.substring(0, 50) + '...');
+              break;
+            }
+            
+            // Skip Gritzpup's messages from twitchrelayer bot (Telegram/Discord relay bot)
+            if (parsed.nick === 'twitchrelayer' && 
+                (parsed.message.includes('[Telegram] Gritzpup:') || parsed.message.includes('[Discord] gritzpup:'))) {
+              console.log('[Twitch] Skipping Gritzpup relay:', parsed.message.substring(0, 50) + '...');
               break;
             }
             

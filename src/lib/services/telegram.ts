@@ -527,6 +527,20 @@ export class TelegramService {
         return;
       }
       
+      // Handle reply to message
+      let replyTo = undefined;
+      if (update.message.reply_to_message) {
+        const replyMsg = update.message.reply_to_message;
+        const replyAuthor = replyMsg.from?.username || 
+          `${replyMsg.from?.first_name}${replyMsg.from?.last_name ? ' ' + replyMsg.from.last_name : ''}`;
+        const replyContent = replyMsg.text || replyMsg.caption || '[Media]';
+        
+        replyTo = {
+          author: replyAuthor,
+          content: replyContent.length > 100 ? replyContent.substring(0, 100) + '...' : replyContent
+        };
+      }
+      
       // Only add message if there's content or attachments
       if (content || attachments.length > 0) {
         const messageData = {
@@ -538,7 +552,8 @@ export class TelegramService {
           telegramCustomEmojis: customEmojis.length > 0 ? customEmojis : undefined,
           channelId: chat.id.toString(),
           channelName: channelName,
-          isDM: isDM
+          isDM: isDM,
+          replyTo: replyTo
         };
         
         // Add to local store

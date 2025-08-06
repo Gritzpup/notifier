@@ -198,11 +198,7 @@ export class DiscordService {
         break;
         
       case 'MESSAGE_CREATE':
-        // Skip messages from gritzpup (your personal account)
-        if (payload.d.author.username.toLowerCase() === 'gritzpup') {
-          console.log('[Discord] Skipping message from gritzpup');
-          break;
-        }
+        console.log(`[Discord] MESSAGE_CREATE from ${payload.d.author.username} (${payload.d.author.id})`);
         
         // Check if this is a bot message with arrival/departure information
         let messageType: 'text' | 'user_join' | 'user_leave' | 'system' = 'text';
@@ -343,7 +339,21 @@ export class DiscordService {
           }
         }
         
+        // Handle reply to message
+        let replyTo = undefined;
+        if (payload.d.referenced_message) {
+          const replyMsg = payload.d.referenced_message;
+          const replyAuthor = replyMsg.author?.username || 'Unknown';
+          const replyContent = replyMsg.content || '[Embed/Attachment]';
+          
+          replyTo = {
+            author: replyAuthor,
+            content: replyContent.length > 100 ? replyContent.substring(0, 100) + '...' : replyContent
+          };
+        }
+        
         // Add message to store
+        console.log(`[Discord] Adding message to store from ${payload.d.author.username}: ${displayContent}`);
         
         messagesStore.addMessage({
           platform: 'discord',
@@ -360,7 +370,8 @@ export class DiscordService {
           stickers: stickers,
           customEmojis: customEmojis.length > 0 ? customEmojis : undefined,
           embeds: embeds,
-          attachments: attachments
+          attachments: attachments,
+          replyTo: replyTo
         });
         break;
         

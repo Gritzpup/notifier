@@ -99,6 +99,12 @@
               <span class="bot-badge font-medium">BOT</span>
             {/if}
           </p>
+          {#if message.replyTo}
+            <div class="reply-block mb-3">
+              <div class="reply-author">{message.replyTo.author}</div>
+              <div class="reply-content">{message.replyTo.content}</div>
+            </div>
+          {/if}
           <div class="message-content">
             <RichMessageContent {message} />
           </div>
@@ -146,6 +152,27 @@
     margin-left: 0.5rem;
     display: inline-block;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+  
+  .reply-block {
+    border-left: 3px solid var(--color-text-muted);
+    padding-left: 12px;
+    opacity: 0.8;
+  }
+  
+  .reply-author {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  
+  .reply-content {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   
   .message-content {

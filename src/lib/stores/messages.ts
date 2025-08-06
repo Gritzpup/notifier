@@ -101,6 +101,10 @@ export interface Message {
   embeds?: DiscordEmbed[];
   attachments?: Attachment[];
   isBot?: boolean;
+  replyTo?: {
+    author: string;
+    content: string;
+  };
 }
 
 export type FilterType = Platform | 'all';
