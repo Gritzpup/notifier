@@ -164,6 +164,12 @@
     return null;
   }
   
+  // Simple markdown parser for bold text
+  function parseMarkdown(content: string): string {
+    // Replace **text** with <strong>text</strong>
+    return content.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  }
+  
   $: parsedContent = (() => {
     let content = message.platform === 'discord' 
       ? parseDiscordContent(message.content, message.customEmojis)
@@ -173,11 +179,14 @@
       ? parseTelegramContent(message.content, message.telegramCustomEmojis)
       : message.content;
     
+    // Parse markdown for bold text
+    content = parseMarkdown(content);
+    
     // Parse YouTube links for all platforms
     return parseYouTubeLinks(content);
   })();
     
-  $: isSystemMessage = message.messageType === 'user_join' || message.messageType === 'user_leave';
+  $: isSystemMessage = message.messageType === 'user_join' || message.messageType === 'user_leave' || message.messageType === 'system';
   
   // Format file size to human readable
   function formatFileSize(bytes: number): string {

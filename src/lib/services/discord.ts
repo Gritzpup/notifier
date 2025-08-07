@@ -26,6 +26,7 @@ export class DiscordService {
   private maxConnectionCooldown = 300000; // Max 5 minutes
   private authenticationFailed = false;
   private authenticatedUserId: string | null = null;
+  private voiceStates: Map<string, string | null> = new Map(); // userId -> channelId
 
   constructor(token: string, channelFilter: string[] = []) {
     this.token = token;
@@ -429,6 +430,55 @@ export class DiscordService {
           isBot: payload.d.user.bot
         });
         break;
+        
+      case 'VOICE_STATE_UPDATE':
+        const userId = payload.d.user_id;
+        const newChannelId = payload.d.channel_id;
+        const previousChannelId = this.voiceStates.get(userId) || null;
+        const audioGeneralChannelId = '1397623339660607531';
+        
+        // Update voice state
+        if (newChannelId) {
+          this.voiceStates.set(userId, newChannelId);
+        } else {
+          this.voiceStates.delete(userId);
+        }
+        
+        // Check if user joined or left the audio general channel
+        if (newChannelId === audioGeneralChannelId && previousChannelId !== audioGeneralChannelId) {
+          // User joined audio general
+          console.log(`[Discord] User ${payload.d.member?.user?.username || userId} joined audio general`);
+          
+          messagesStore.addMessage({
+            platform: 'discord',
+            author: 'System',
+            content: `🎤 **${payload.d.member?.user?.username || 'Someone'}** joined audio general`,
+            avatarUrl: payload.d.member?.user?.avatar 
+              ? `https://cdn.discordapp.com/avatars/${userId}/${payload.d.member.user.avatar}.png`
+              : undefined,
+            channelId: audioGeneralChannelId,
+            channelName: 'audio general',
+            messageType: 'system',
+            isDM: false
+          });
+        } else if (previousChannelId === audioGeneralChannelId && newChannelId !== audioGeneralChannelId) {
+          // User left audio general
+          console.log(`[Discord] User ${payload.d.member?.user?.username || userId} left audio general`);
+          
+          messagesStore.addMessage({
+            platform: 'discord',
+            author: 'System',
+            content: `👋 **${payload.d.member?.user?.username || 'Someone'}** left audio general`,
+            avatarUrl: payload.d.member?.user?.avatar 
+              ? `https://cdn.discordapp.com/avatars/${userId}/${payload.d.member.user.avatar}.png`
+              : undefined,
+            channelId: audioGeneralChannelId,
+            channelName: 'audio general',
+            messageType: 'system',
+            isDM: false
+          });
+        }
+        break;
     }
   }
 
@@ -437,7 +487,7 @@ export class DiscordService {
       op: 2,
       d: {
         token: this.token,
-        intents: 1 | 2 | 512 | 1024 | 32768, // GUILDS + GUILD_MEMBERS + GUILD_MESSAGES + DIRECT_MESSAGES + MESSAGE_CONTENT
+        intents: 1 | 2 | 128 | 512 | 1024 | 32768, // GUILDS + GUILD_MEMBERS + GUILD_VOICE_STATES + GUILD_MESSAGES + DIRECT_MESSAGES + MESSAGE_CONTENT
         properties: {
           browser: 'Notification Hub',
           device: 'Notification Hub',
