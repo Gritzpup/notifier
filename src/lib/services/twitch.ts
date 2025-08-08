@@ -169,6 +169,25 @@ export class TwitchService {
             console.log(`[Twitch] Chat message from ${parsed.nick} in ${parsed.channel}: ${parsed.message}`);
             console.log('[Twitch] Message tags:', parsed.tags);
             
+            // Parse reply information from tags
+            let replyTo = undefined;
+            if (parsed.tags && parsed.tags['reply-parent-msg-id']) {
+              const replyAuthor = parsed.tags['reply-parent-display-name'] || 
+                                  parsed.tags['reply-parent-user-login'] || 
+                                  'Unknown';
+              const replyBody = parsed.tags['reply-parent-msg-body'] || '[Message unavailable]';
+              
+              // Unescape Twitch IRC escaped characters
+              const unescapedBody = this.unescapeTwitchString(replyBody);
+              
+              replyTo = {
+                author: replyAuthor,
+                content: unescapedBody.length > 100 ? unescapedBody.substring(0, 100) + '...' : unescapedBody
+              };
+              
+              console.log('[Twitch] Reply context:', replyTo);
+            }
+            
             // Parse emotes from tags
             const emotes = this.parseEmotesFromTags(parsed.tags.emotes, parsed.message);
             
@@ -182,7 +201,8 @@ export class TwitchService {
                 channelId: parsed.channel,
                 channelName: parsed.channel,
                 isDM: false,
-                emotes: emotes.length > 0 ? emotes : undefined
+                emotes: emotes.length > 0 ? emotes : undefined,
+                replyTo: replyTo
               });
             });
           }
@@ -326,6 +346,16 @@ export class TwitchService {
       this.ws.close();
       this.ws = null;
     }
+  }
+  
+  private unescapeTwitchString(str: string): string {
+    if (!str) return '';
+    return str
+      .replace(/\\s/g, ' ')
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r')
+      .replace(/\\:/g, ';')
+      .replace(/\\\\/g, '\\');
   }
 
   private parseEmotesFromTags(emotesTag: string | undefined | boolean, message: string): TwitchEmote[] {
