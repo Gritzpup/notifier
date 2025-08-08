@@ -2,6 +2,7 @@ import { messagesStore } from '$lib/stores/messages';
 import { connectionsStore } from '$lib/stores/connections';
 import { broadcastService } from './broadcast';
 import { leaderElection } from './leader-election';
+import { getTelegramChannelName } from '$lib/config/channelMappings';
 
 interface TelegramUpdate {
   update_id: number;
@@ -90,6 +91,8 @@ interface TelegramUpdate {
       set_name?: string;
       file_size?: number;
     };
+    message_thread_id?: number; // For forum topics
+    reply_to_message?: any; // Already handled in the code
   };
 }
 
@@ -376,7 +379,16 @@ export class TelegramService {
         channelName = authorName;
         isDM = true;
       } else if (chat.type === 'group' || chat.type === 'supergroup') {
-        channelName = chat.title || `Group ${chat.id}`;
+        // Check if this is a topic message
+        if (update.message.message_thread_id) {
+          // It's a topic message, use our mapping
+          const topicName = getTelegramChannelName(update.message.message_thread_id.toString());
+          channelName = `${chat.title} #${topicName}`;
+        } else {
+          // It's the general chat or a regular group
+          const generalName = getTelegramChannelName(null);
+          channelName = `${chat.title} #${generalName}`;
+        }
         isDM = false;
       } else {
         // Skip other types like channels unless we add support later

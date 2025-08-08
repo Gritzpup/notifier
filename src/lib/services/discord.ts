@@ -1,5 +1,6 @@
 import { messagesStore } from '$lib/stores/messages';
 import { connectionsStore } from '$lib/stores/connections';
+import { getDiscordChannelName } from '$lib/config/channelMappings';
 
 interface DiscordGatewayPayload {
   op: number;
@@ -248,17 +249,23 @@ export class DiscordService {
         let channelName = 'Direct Message';
         if (payload.d.guild_id) {
           const guildName = this.guildNames.get(payload.d.guild_id) || 'Unknown Server';
-          let channelNameOnly = this.channelNames.get(payload.d.channel_id);
           
-          // If channel not cached, try to get it from the message event
-          if (!channelNameOnly && payload.d.channel_id) {
-            // Discord sometimes includes channel info in messages
-            // For now, we'll use the channel ID as a fallback
-            channelNameOnly = `channel-${payload.d.channel_id.slice(-6)}`;
-            // Channel not in cache, using fallback name
+          // Use our channel mapping first, then fall back to cached names
+          const mappedChannelName = getDiscordChannelName(payload.d.channel_id);
+          let channelNameOnly;
+          
+          if (mappedChannelName.startsWith('channel-')) {
+            // No mapping found, try cache
+            channelNameOnly = this.channelNames.get(payload.d.channel_id);
+            if (!channelNameOnly) {
+              channelNameOnly = `channel-${payload.d.channel_id.slice(-6)}`;
+            }
+          } else {
+            // Found in mapping
+            channelNameOnly = mappedChannelName;
           }
           
-          channelName = `${guildName} #${channelNameOnly || 'unknown'}`;
+          channelName = `${guildName} #${channelNameOnly}`;
         }
         
         // Parse stickers - Discord sends both stickers and sticker_items
