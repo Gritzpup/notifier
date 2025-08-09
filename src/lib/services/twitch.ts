@@ -113,6 +113,11 @@ export class TwitchService {
   }
 
   private handleMessage(rawMessage: string) {
+    // Debug: Log raw message
+    if (rawMessage.includes('twitchrelayer')) {
+      console.log('[Twitch] RAW MESSAGE WITH TWITCHRELAYER:', rawMessage);
+    }
+    
     const messages = rawMessage.split('\r\n').filter(msg => msg.length > 0);
     
     for (const message of messages) {
@@ -146,18 +151,53 @@ export class TwitchService {
           break;
           
         case 'PRIVMSG':
+          // Enhanced debug logging for PRIVMSG
+          console.log('[Twitch] PRIVMSG - Raw parsed data:', {
+            nick: JSON.stringify(parsed.nick),
+            nickLength: parsed.nick?.length,
+            channel: parsed.channel,
+            message: JSON.stringify(parsed.message),
+            messageLength: parsed.message?.length
+          });
+          
           if (parsed.nick && parsed.channel && parsed.message) {
-            // Filter ALL Telegram messages from twitchrelayer (we get them directly from Telegram)
-            if (parsed.nick.toLowerCase() === 'twitchrelayer') {
-              // Skip if it's a Telegram message/reply (has [Telegram] or 📱 reply emoji)
-              if (parsed.message.includes('[Telegram]') || parsed.message.includes('📱')) {
-                console.log('[Twitch] Filtering Telegram relay from twitchrelayer');
+            // More defensive filtering - trim and normalize the nick
+            const normalizedNick = (parsed.nick || '').trim().toLowerCase();
+            
+            // Debug nick comparison
+            console.log('[Twitch] Nick check:', {
+              original: parsed.nick,
+              normalized: normalizedNick,
+              isTwitchRelayer: normalizedNick === 'twitchrelayer',
+              includesTwitchRelayer: normalizedNick.includes('twitchrelayer')
+            });
+            
+            // Use includes instead of exact match (in case of hidden characters)
+            if (normalizedNick.includes('twitchrelayer')) {
+              console.log('[Twitch] TWITCHRELAYER MESSAGE DETECTED');
+              
+              // Check multiple patterns
+              const messagePatterns = [
+                '[Telegram]',
+                '🔵 [Telegram]',
+                '📱 Replying to',
+                '📱',
+                'Telegram] Gritzpup:'
+              ];
+              
+              const shouldFilterTelegram = messagePatterns.some(pattern => 
+                parsed.message.includes(pattern)
+              );
+              
+              if (shouldFilterTelegram) {
+                console.log('[Twitch] FILTERING: Telegram message/reply from twitchrelayer');
+                console.log('[Twitch] Message that was filtered:', parsed.message);
                 break;
               }
               
               // Also skip your Discord messages
               if (parsed.message.toLowerCase().includes('[discord] gritzpup:')) {
-                console.log('[Twitch] Filtering Gritzpup Discord relay');
+                console.log('[Twitch] FILTERING: Gritzpup Discord relay');
                 break;
               }
             }
