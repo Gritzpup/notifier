@@ -176,13 +176,19 @@ export class TwitchService {
             if (normalizedNick.includes('twitchrelayer')) {
               console.log('[Twitch] TWITCHRELAYER MESSAGE DETECTED');
               
-              // Check multiple patterns
+              // Check multiple patterns - including Unicode variants
               const messagePatterns = [
                 '[Telegram]',
                 '🔵 [Telegram]',
                 '📱 Replying to',
                 '📱',
-                'Telegram] Gritzpup:'
+                'Telegram] Gritzpup:',
+                // Unicode patterns used by twitchrelayer
+                '🔵',
+                '𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦',
+                '[𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦]',
+                '↩️',
+                '🔴'
               ];
               
               const shouldFilterTelegram = messagePatterns.some(pattern => 
@@ -195,9 +201,23 @@ export class TwitchService {
                 break;
               }
               
-              // Also skip your Discord messages
-              if (parsed.message.toLowerCase().includes('[discord] gritzpup:')) {
+              // Also skip your Discord messages (check both regular and Unicode variants)
+              const discordPatterns = [
+                '[discord] gritzpup:',
+                '[Discord] Gritzpup:',
+                '𝐃𝐢𝐬𝐜𝐨𝐫𝐝] 𝐆𝐫𝐢𝐭𝐳𝐩𝐮𝐩:',
+                '[𝐃𝐢𝐬𝐜𝐨𝐫𝐝] 𝐆𝐫𝐢𝐭𝐳𝐩𝐮𝐩:',
+                '🟣',  // Purple circle that might be used for Discord
+                '𝐆𝐫𝐢𝐭𝐳𝐩𝐮𝐩'  // Unicode variant of username
+              ];
+              
+              const shouldFilterDiscord = discordPatterns.some(pattern => 
+                parsed.message.toLowerCase().includes(pattern.toLowerCase())
+              );
+              
+              if (shouldFilterDiscord) {
                 console.log('[Twitch] FILTERING: Gritzpup Discord relay');
+                console.log('[Twitch] Message that was filtered:', parsed.message);
                 break;
               }
             }
