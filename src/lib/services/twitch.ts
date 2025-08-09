@@ -158,10 +158,15 @@ export class TwitchService {
               break;
             }
             
-            // Skip Gritzpup's messages from twitchrelayer bot (Telegram/Discord relay bot)
-            if (parsed.nick === 'twitchrelayer' && 
-                (parsed.message.includes('[Telegram] Gritzpup:') || parsed.message.includes('[Discord] gritzpup:'))) {
-              console.log('[Twitch] Skipping Gritzpup relay:', parsed.message.substring(0, 50) + '...');
+            // Skip ALL Telegram messages from twitchrelayer bot (we already get them directly from Telegram)
+            if (parsed.nick === 'twitchrelayer' && parsed.message.includes('[Telegram]')) {
+              console.log('[Twitch] Skipping Telegram relay:', parsed.message.substring(0, 50) + '...');
+              break;
+            }
+            
+            // Skip Gritzpup's Discord messages from twitchrelayer bot
+            if (parsed.nick === 'twitchrelayer' && parsed.message.includes('[Discord] gritzpup:')) {
+              console.log('[Twitch] Skipping Gritzpup Discord relay:', parsed.message.substring(0, 50) + '...');
               break;
             }
             
