@@ -146,34 +146,18 @@ export class TwitchService {
           break;
           
         case 'PRIVMSG':
-          // Debug logging
-          console.log('[Twitch] PRIVMSG received');
-          console.log('[Twitch] Parsed nick:', JSON.stringify(parsed.nick));
-          console.log('[Twitch] Parsed message:', JSON.stringify(parsed.message));
-          console.log('[Twitch] Nick === twitchrelayer:', parsed.nick === 'twitchrelayer');
-          console.log('[Twitch] Nick (lowercased):', parsed.nick?.toLowerCase());
-          
           if (parsed.nick && parsed.channel && parsed.message) {
-            // More robust filtering for twitchrelayer
-            const lowerNick = (parsed.nick || '').toLowerCase().trim();
-            
-            // First, check if this is from twitchrelayer
-            if (lowerNick === 'twitchrelayer') {
-              console.log('[Twitch] Message from twitchrelayer detected');
-              console.log('[Twitch] Full message:', parsed.message);
-              
-              // Check for Telegram messages (with or without emoji)
-              if (parsed.message.includes('[Telegram]') || 
-                  parsed.message.includes('🔵 [Telegram]') ||
-                  parsed.message.includes('[telegram]')) {
-                console.log('[Twitch] FILTERING: Telegram relay from twitchrelayer');
+            // Filter ALL Telegram messages from twitchrelayer (we get them directly from Telegram)
+            if (parsed.nick.toLowerCase() === 'twitchrelayer') {
+              // Skip if it's a Telegram message/reply (has [Telegram] or 📱 reply emoji)
+              if (parsed.message.includes('[Telegram]') || parsed.message.includes('📱')) {
+                console.log('[Twitch] Filtering Telegram relay from twitchrelayer');
                 break;
               }
               
-              // Check for your Discord messages
-              if (parsed.message.includes('[Discord] gritzpup:') || 
-                  parsed.message.includes('[discord] gritzpup:')) {
-                console.log('[Twitch] FILTERING: Gritzpup Discord relay');
+              // Also skip your Discord messages
+              if (parsed.message.toLowerCase().includes('[discord] gritzpup:')) {
+                console.log('[Twitch] Filtering Gritzpup Discord relay');
                 break;
               }
             }
