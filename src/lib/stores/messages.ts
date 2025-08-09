@@ -105,6 +105,7 @@ export interface Message {
     author: string;
     content: string;
   };
+  platformMessageId?: string;
 }
 
 export type FilterType = Platform | 'all';
@@ -182,6 +183,31 @@ function createMessagesStore() {
     
     setFilter: (filter: FilterType) => {
       update(state => ({ ...state, filter }));
+    },
+    
+    deleteMessage: (platform: Platform, platformMessageId: string) => {
+      console.log(`=== messagesStore.deleteMessage called ===`);
+      console.log(`Platform: ${platform}, Platform Message ID: ${platformMessageId}`);
+      
+      update(state => {
+        const messageIndex = state.messages.findIndex(
+          msg => msg.platform === platform && msg.platformMessageId === platformMessageId
+        );
+        
+        if (messageIndex !== -1) {
+          console.log(`Found message to delete at index ${messageIndex}`);
+          const newMessages = [...state.messages];
+          newMessages.splice(messageIndex, 1);
+          
+          return {
+            ...state,
+            messages: newMessages
+          };
+        } else {
+          console.log(`No message found with platform ${platform} and ID ${platformMessageId}`);
+          return state;
+        }
+      });
     }
   };
 }

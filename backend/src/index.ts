@@ -42,6 +42,12 @@ io.on('connection', (socket) => {
     // Stop polling for this socket
   });
   
+  socket.on('message-deleted', (data: { platform: string; platformMessageId: string }) => {
+    console.log('Message deletion event received:', data);
+    // Broadcast to all connected clients
+    io.emit('message-deleted', data);
+  });
+  
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });

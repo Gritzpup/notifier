@@ -6,6 +6,27 @@ import { getTelegramChannelName } from '$lib/config/channelMappings';
 
 interface TelegramUpdate {
   update_id: number;
+  edited_message?: {
+    message_id: number;
+    from: {
+      id: number;
+      is_bot: boolean;
+      first_name: string;
+      last_name?: string;
+      username?: string;
+    };
+    chat: {
+      id: number;
+      type: string;
+      title?: string;
+      first_name?: string;
+      last_name?: string;
+      username?: string;
+    };
+    date: number;
+    edit_date?: number;
+    text?: string;
+  };
   message?: {
     message_id: number;
     from: {
@@ -135,6 +156,17 @@ export class TelegramService {
         } else {
           connectionsStore.setConnecting('telegram');
         }
+      }
+    });
+    
+    // Listen for deletion events from other tabs
+    broadcastService.on('telegram-deletion', (data) => {
+      if (!this.isLeaderTab) {
+        // Emit the deletion event for this tab's socket
+        const event = new CustomEvent('telegram-message-deleted', {
+          detail: data
+        });
+        window.dispatchEvent(event);
       }
     });
   }
@@ -360,6 +392,30 @@ export class TelegramService {
   }
 
   private async handleUpdate(update: TelegramUpdate) {
+    // Handle edited messages (check for deletions)
+    if (update.edited_message) {
+      // Check if the message was deleted (text is empty or undefined)
+      if (!update.edited_message.text || update.edited_message.text === '') {
+        console.log('[Telegram] Message deletion detected:', update.edited_message.message_id);
+        
+        // Emit deletion event
+        const event = new CustomEvent('telegram-message-deleted', {
+          detail: {
+            platform: 'telegram',
+            platformMessageId: update.edited_message.message_id.toString()
+          }
+        });
+        window.dispatchEvent(event);
+        
+        // Broadcast deletion to other tabs
+        broadcastService.send('telegram-deletion', {
+          platform: 'telegram',
+          platformMessageId: update.edited_message.message_id.toString()
+        });
+      }
+      return;
+    }
+    
     if (update.message) {
       const chat = update.message.chat;
       const from = update.message.from;
@@ -565,7 +621,8 @@ export class TelegramService {
           channelId: chat.id.toString(),
           channelName: channelName,
           isDM: isDM,
-          replyTo: replyTo
+          replyTo: replyTo,
+          platformMessageId: update.message.message_id.toString()
         };
         
         // Add to local store
@@ -598,6 +655,7 @@ export class TelegramService {
     // Clean up broadcast listeners
     broadcastService.off('telegram-message');
     broadcastService.off('telegram-status');
+    broadcastService.off('telegram-deletion');
     
     connectionsStore.disconnect('telegram');
   }

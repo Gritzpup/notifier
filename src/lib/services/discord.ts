@@ -385,7 +385,8 @@ export class DiscordService {
           customEmojis: customEmojis.length > 0 ? customEmojis : undefined,
           embeds: embeds,
           attachments: attachments,
-          replyTo: replyTo
+          replyTo: replyTo,
+          platformMessageId: payload.d.id
         });
         break;
         
@@ -484,6 +485,23 @@ export class DiscordService {
             messageType: 'system',
             isDM: false
           });
+        }
+        break;
+        
+      case 'MESSAGE_DELETE':
+        console.log(`[Discord] MESSAGE_DELETE event:`, payload.d);
+        
+        if (payload.d.id) {
+          // Emit deletion event through WebSocket
+          const event = new CustomEvent('discord-message-deleted', {
+            detail: {
+              platform: 'discord',
+              platformMessageId: payload.d.id
+            }
+          });
+          window.dispatchEvent(event);
+          
+          console.log(`[Discord] Message ${payload.d.id} deleted`);
         }
         break;
     }

@@ -270,7 +270,8 @@ export class TwitchService {
                 channelName: parsed.channel,
                 isDM: false,
                 emotes: emotes.length > 0 ? emotes : undefined,
-                replyTo: replyTo
+                replyTo: replyTo,
+                platformMessageId: parsed.tags.id || undefined
               });
             });
           }
@@ -286,6 +287,25 @@ export class TwitchService {
           
         case 'WHISPER':
           // Silently ignore whispers for privacy
+          break;
+          
+        case 'CLEARMSG':
+          console.log('[Twitch] CLEARMSG event:', parsed);
+          
+          // Extract the target message ID from tags
+          if (parsed.tags && parsed.tags['target-msg-id']) {
+            const deletedMessageId = parsed.tags['target-msg-id'];
+            console.log(`[Twitch] Message ${deletedMessageId} was deleted`);
+            
+            // Emit deletion event
+            const event = new CustomEvent('twitch-message-deleted', {
+              detail: {
+                platform: 'twitch',
+                platformMessageId: deletedMessageId
+              }
+            });
+            window.dispatchEvent(event);
+          }
           break;
           
         default:

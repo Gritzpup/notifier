@@ -36,8 +36,32 @@ export function initializeSocket() {
     console.error('DM polling error:', error);
   });
   
+  socket.on('message-deleted', (data: { platform: string; platformMessageId: string }) => {
+    console.log('Message deletion event received:', data);
+    messagesStore.deleteMessage(data.platform as any, data.platformMessageId);
+  });
+  
   socket.on('disconnect', () => {
     console.log('Disconnected from backend server');
+  });
+  
+  // Listen for deletion events from services and forward to backend
+  window.addEventListener('discord-message-deleted', (event: any) => {
+    if (socket) {
+      socket.emit('message-deleted', event.detail);
+    }
+  });
+  
+  window.addEventListener('telegram-message-deleted', (event: any) => {
+    if (socket) {
+      socket.emit('message-deleted', event.detail);
+    }
+  });
+  
+  window.addEventListener('twitch-message-deleted', (event: any) => {
+    if (socket) {
+      socket.emit('message-deleted', event.detail);
+    }
   });
 }
 
