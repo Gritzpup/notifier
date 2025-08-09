@@ -5,7 +5,7 @@ const router = Router();
 
 const DISCORD_CLIENT_ID = process.env.VITE_DISCORD_CLIENT_ID || process.env.DISCORD_CLIENT_ID || '1401002202268696697';
 const DISCORD_CLIENT_SECRET = process.env.VITE_DISCORD_CLIENT_SECRET || process.env.DISCORD_CLIENT_SECRET || '';
-const REDIRECT_URI = 'http://localhost:3001/auth/discord/callback';
+const REDIRECT_URI = 'http://localhost:2002/auth/discord/callback';
 
 // Discord OAuth2 URLs
 const DISCORD_OAUTH_URL = 'https://discord.com/api/oauth2/authorize';

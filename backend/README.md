@@ -31,7 +31,7 @@ This backend server handles Discord OAuth2 authentication to fetch your personal
 ## Architecture
 
 - **Frontend (port 5173)**: SvelteKit app with bot connections
-- **Backend (port 3001)**: Express server for OAuth2 and DM polling
+- **Backend (port 2002)**: Express server for OAuth2 and DM polling
 - **Communication**: Socket.io for real-time updates
 
 ## Endpoints

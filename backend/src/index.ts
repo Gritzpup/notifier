@@ -17,7 +17,7 @@ const io = new Server(server, {
   }
 });
 
-const PORT = process.env.VITE_BACKEND_PORT || 3001;
+const PORT = process.env.VITE_BACKEND_PORT || 2002;
 
 // Middleware
 app.use(cors({

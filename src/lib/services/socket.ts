@@ -7,7 +7,7 @@ let socket: ReturnType<typeof io> | null = null;
 export function initializeSocket() {
   if (!browser || socket) return;
   
-  socket = io('http://localhost:3001', {
+  socket = io('http://localhost:2002', {
     withCredentials: true,
     transports: ['websocket', 'polling']
   });
