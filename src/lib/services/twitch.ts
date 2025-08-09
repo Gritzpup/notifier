@@ -146,8 +146,39 @@ export class TwitchService {
           break;
           
         case 'PRIVMSG':
+          // Debug logging
+          console.log('[Twitch] PRIVMSG received');
+          console.log('[Twitch] Parsed nick:', JSON.stringify(parsed.nick));
+          console.log('[Twitch] Parsed message:', JSON.stringify(parsed.message));
+          console.log('[Twitch] Nick === twitchrelayer:', parsed.nick === 'twitchrelayer');
+          console.log('[Twitch] Nick (lowercased):', parsed.nick?.toLowerCase());
+          
           if (parsed.nick && parsed.channel && parsed.message) {
-            // Check if this is a relayed message from another platform
+            // More robust filtering for twitchrelayer
+            const lowerNick = (parsed.nick || '').toLowerCase().trim();
+            
+            // First, check if this is from twitchrelayer
+            if (lowerNick === 'twitchrelayer') {
+              console.log('[Twitch] Message from twitchrelayer detected');
+              console.log('[Twitch] Full message:', parsed.message);
+              
+              // Check for Telegram messages (with or without emoji)
+              if (parsed.message.includes('[Telegram]') || 
+                  parsed.message.includes('🔵 [Telegram]') ||
+                  parsed.message.includes('[telegram]')) {
+                console.log('[Twitch] FILTERING: Telegram relay from twitchrelayer');
+                break;
+              }
+              
+              // Check for your Discord messages
+              if (parsed.message.includes('[Discord] gritzpup:') || 
+                  parsed.message.includes('[discord] gritzpup:')) {
+                console.log('[Twitch] FILTERING: Gritzpup Discord relay');
+                break;
+              }
+            }
+            
+            // Check if this is a relayed message from another platform (original check)
             const relayPrefixes = ['[Discord]', '[Telegram]'];
             const isRelayedMessage = relayPrefixes.some(prefix => 
               parsed.message.trimStart().startsWith(prefix)
@@ -155,18 +186,6 @@ export class TwitchService {
             
             if (isRelayedMessage) {
               console.log('[Twitch] Skipping relayed message:', parsed.message.substring(0, 50) + '...');
-              break;
-            }
-            
-            // Skip ALL Telegram messages from twitchrelayer bot (we already get them directly from Telegram)
-            if (parsed.nick === 'twitchrelayer' && parsed.message.includes('[Telegram]')) {
-              console.log('[Twitch] Skipping Telegram relay:', parsed.message.substring(0, 50) + '...');
-              break;
-            }
-            
-            // Skip Gritzpup's Discord messages from twitchrelayer bot
-            if (parsed.nick === 'twitchrelayer' && parsed.message.includes('[Discord] gritzpup:')) {
-              console.log('[Twitch] Skipping Gritzpup Discord relay:', parsed.message.substring(0, 50) + '...');
               break;
             }
             
