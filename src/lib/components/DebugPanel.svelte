@@ -35,6 +35,16 @@
     window.location.reload();
   }
   
+  function cleanupStaleLeader() {
+    // Clean up stale leader data without reloading
+    localStorage.removeItem('notifier-leader');
+    // Clean up any probe entries
+    Object.keys(localStorage)
+      .filter(key => key.startsWith('leader-election-probe-'))
+      .forEach(key => localStorage.removeItem(key));
+    updateLeaderInfo();
+  }
+  
   onMount(() => {
     updateLeaderInfo();
     interval = setInterval(updateLeaderInfo, 1000);
@@ -65,6 +75,15 @@
           <p>Leader Tab: {leaderInfo.tabId?.slice(0, 20)}...</p>
           <p>Last Heartbeat: {new Date(leaderInfo.timestamp).toLocaleTimeString()}</p>
           <p>Age: {Math.floor((Date.now() - leaderInfo.timestamp) / 1000)}s</p>
+          {#if leaderInfo.tabId}
+            {@const tabCreatedTime = parseInt(leaderInfo.tabId.split('-')[0])}
+            <p>Tab Created: {new Date(tabCreatedTime).toLocaleTimeString()} ({Math.floor((Date.now() - tabCreatedTime) / 1000 / 60)}min ago)</p>
+          {/if}
+          {#if Date.now() - leaderInfo.timestamp > 5000}
+            <p class="error">⚠️ Leader is stale!</p>
+          {/if}
+        {:else}
+          <p>No leader data found</p>
         {/if}
       </div>
       
@@ -91,8 +110,11 @@
       {/if}
       
       <div class="debug-actions">
+        <button on:click={cleanupStaleLeader} class="cleanup-btn">
+          Clean Stale Leader
+        </button>
         <button on:click={forceResetTelegram} class="reset-btn">
-          Force Reset Telegram
+          Force Reset & Reload
         </button>
       </div>
     </div>
@@ -200,9 +222,27 @@
     font-family: monospace;
     width: 100%;
     transition: background 0.2s;
+    margin-top: 8px;
   }
   
   .reset-btn:hover {
     background: #f66;
+  }
+  
+  .cleanup-btn {
+    background: #44f;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: monospace;
+    width: 100%;
+    transition: background 0.2s;
+  }
+  
+  .cleanup-btn:hover {
+    background: #66f;
   }
 </style>

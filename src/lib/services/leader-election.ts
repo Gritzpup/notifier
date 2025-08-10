@@ -24,6 +24,24 @@ export class LeaderElection {
     
     console.log(`[LeaderElection] Starting - Tab ID: ${this.tabId}`);
     
+    // Check for stale leader data first
+    const current = this.getCurrentLeader();
+    if (current) {
+      const age = Date.now() - current.timestamp;
+      console.log(`[LeaderElection] Current leader data:`, {
+        tabId: current.tabId,
+        timestamp: current.timestamp,
+        age: `${age}ms (${Math.floor(age / 1000)}s)`,
+        isStale: age > this.timeout
+      });
+      
+      // If leader data is very old (more than 30 seconds), clean it up
+      if (age > 30000) {
+        console.log(`[LeaderElection] Cleaning up stale leader data (${Math.floor(age / 1000)}s old)`);
+        localStorage.removeItem(this.key);
+      }
+    }
+    
     // Add a small random delay to prevent race conditions when multiple tabs start simultaneously
     const jitter = Math.random() * 500;
     setTimeout(() => {
@@ -40,6 +58,15 @@ export class LeaderElection {
     
     // Clean up on page unload
     window.addEventListener('beforeunload', () => this.stop());
+    window.addEventListener('unload', () => this.stop());
+    
+    // Also clean up on page hide (mobile browsers)
+    window.addEventListener('pagehide', () => {
+      if (this.isLeader) {
+        console.log('[LeaderElection] Page hiding, removing leadership');
+        localStorage.removeItem(this.key);
+      }
+    });
   }
 
   private tryBecomeLeader() {
@@ -53,7 +80,34 @@ export class LeaderElection {
       // We are already the leader, update heartbeat
       this.setAsLeader();
     } else {
-      console.log(`[LeaderElection] Another tab is leader: ${current.tabId.slice(0, 20)}... (${now - current.timestamp}ms ago)`);
+      const age = now - current.timestamp;
+      console.log(`[LeaderElection] Another tab is leader: ${current.tabId.slice(0, 20)}... (age: ${age}ms / ${Math.floor(age / 1000)}s)`);
+      
+      // Additional check: if we detect only one tab and leader is stale, force takeover
+      if (age > 10000) { // If leader hasn't updated in 10 seconds
+        console.log(`[LeaderElection] Leader is stale (${Math.floor(age / 1000)}s), attempting force takeover`);
+        // Try to detect if other tabs exist by setting a probe value
+        const probeKey = 'leader-election-probe-' + this.tabId;
+        localStorage.setItem(probeKey, Date.now().toString());
+        
+        // Wait briefly then check if anyone else set a probe
+        setTimeout(() => {
+          const probeCount = Object.keys(localStorage)
+            .filter(key => key.startsWith('leader-election-probe-'))
+            .length;
+          
+          // Clean up our probe
+          localStorage.removeItem(probeKey);
+          
+          if (probeCount === 1) {
+            console.log('[LeaderElection] Only one tab detected, forcing leadership takeover');
+            localStorage.removeItem(this.key);
+            this.setAsLeader();
+          } else {
+            console.log(`[LeaderElection] Multiple tabs detected (${probeCount}), waiting for proper handoff`);
+          }
+        }, 500);
+      }
     }
   }
 
@@ -99,9 +153,14 @@ export class LeaderElection {
     if (current && current.tabId === this.tabId) {
       const leaderData = {
         tabId: this.tabId,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        startTime: this.startTime
       };
       localStorage.setItem(this.key, JSON.stringify(leaderData));
+    } else if (this.isLeader) {
+      console.log('[LeaderElection] Lost leader status during heartbeat update');
+      this.isLeader = false;
+      this.onLeadershipChange?.(false);
     }
   }
 
@@ -162,11 +221,18 @@ export class LeaderElection {
     }
     
     window.removeEventListener('storage', this.handleStorageChange);
+    window.removeEventListener('beforeunload', () => this.stop());
+    window.removeEventListener('unload', () => this.stop());
     
     if (this.isLeader) {
       this.isLeader = false;
       this.onLeadershipChange?.(false);
     }
+    
+    // Clean up any probe entries
+    Object.keys(localStorage)
+      .filter(key => key.startsWith('leader-election-probe-'))
+      .forEach(key => localStorage.removeItem(key));
   }
 
   getIsLeader(): boolean {

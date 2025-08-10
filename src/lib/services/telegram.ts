@@ -136,6 +136,7 @@ export class TelegramService {
   public readonly sessionId = crypto.randomUUID();
   public conflictCount = 0;
   public lastPollTime = 0;
+  private statusBroadcastInterval: number | null = null;
 
   constructor(token: string, groupFilter: string[] = []) {
     this.token = token;
@@ -151,6 +152,7 @@ export class TelegramService {
     
     // Listen for connection status updates from leader
     broadcastService.on('telegram-status', (status) => {
+      console.log('[Telegram] Received broadcast status:', status, 'isLeader:', this.isLeaderTab);
       if (!this.isLeaderTab) {
         if (status.connected) {
           connectionsStore.setConnected('telegram');
@@ -159,6 +161,15 @@ export class TelegramService {
         } else {
           connectionsStore.setConnecting('telegram');
         }
+      }
+    });
+    
+    // Handle status requests from non-leader tabs
+    broadcastService.on('telegram-status-request', () => {
+      console.log('[Telegram] Received status request, isLeader:', this.isLeaderTab, 'isPolling:', this.isPolling);
+      if (this.isLeaderTab && this.isPolling) {
+        console.log('[Telegram] Responding to status request with connected status');
+        broadcastService.send('telegram-status', { connected: true });
       }
     });
     
@@ -195,9 +206,42 @@ export class TelegramService {
       this.isLeaderTab = true;
       this.startPolling();
     } else {
-      // Not the leader, just show as connected if another tab is polling
+      // Not the leader, show as connecting and request status from leader
       connectionsStore.setConnecting('telegram');
-      // The leader tab will broadcast the actual status
+      console.log('[Telegram] Non-leader tab requesting status from leader');
+      
+      // Track if we receive a response
+      let receivedResponse = false;
+      const statusHandler = (status: any) => {
+        console.log('[Telegram] Received status response from leader');
+        receivedResponse = true;
+      };
+      
+      // Listen for status response
+      broadcastService.on('telegram-status', statusHandler);
+      
+      // Request status after a short delay to ensure leader is set up
+      setTimeout(() => {
+        broadcastService.send('telegram-status-request', {});
+      }, 1000);
+      
+      // Request again after 3 seconds in case the first was missed
+      setTimeout(() => {
+        if (!receivedResponse) {
+          broadcastService.send('telegram-status-request', {});
+        }
+      }, 3000);
+      
+      // If no response after 6 seconds, leader might be unresponsive
+      setTimeout(() => {
+        if (!receivedResponse && !this.isLeaderTab) {
+          console.warn('[Telegram] No response from leader after 6s, leader may be in different browser context');
+          // Show a warning status instead of connecting
+          connectionsStore.setError('telegram', 'Leader tab not responding - check other browser windows');
+        }
+        // Clean up the temporary handler
+        broadcastService.off('telegram-status', statusHandler);
+      }, 6000);
     }
   }
   
@@ -223,6 +267,17 @@ export class TelegramService {
       broadcastService.send('telegram-status', { connected: true });
       this.reconnectAttempts = 0;
       
+      // Broadcast status periodically for new tabs
+      if (this.statusBroadcastInterval) {
+        clearInterval(this.statusBroadcastInterval);
+      }
+      this.statusBroadcastInterval = window.setInterval(() => {
+        if (this.isLeaderTab && this.isPolling) {
+          console.log('[Telegram] Broadcasting connected status');
+          broadcastService.send('telegram-status', { connected: true });
+        }
+      }, 5000); // Every 5 seconds
+      
       // Start polling
       this.poll();
     } catch (error) {
@@ -246,6 +301,11 @@ export class TelegramService {
     if (this.pollingTimeout) {
       clearTimeout(this.pollingTimeout);
       this.pollingTimeout = null;
+    }
+    
+    if (this.statusBroadcastInterval) {
+      clearInterval(this.statusBroadcastInterval);
+      this.statusBroadcastInterval = null;
     }
   }
 
@@ -688,12 +748,18 @@ export class TelegramService {
       this.pollingTimeout = null;
     }
     
+    if (this.statusBroadcastInterval) {
+      clearInterval(this.statusBroadcastInterval);
+      this.statusBroadcastInterval = null;
+    }
+    
     // Stop leader election
     leaderElection.stop();
     
     // Clean up broadcast listeners
     broadcastService.off('telegram-message');
     broadcastService.off('telegram-status');
+    broadcastService.off('telegram-status-request');
     broadcastService.off('telegram-deletion');
     
     connectionsStore.disconnect('telegram');
