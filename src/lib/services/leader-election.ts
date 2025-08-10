@@ -8,25 +8,32 @@ export class LeaderElection {
   private heartbeatTimer: number | null = null;
   private checkTimer: number | null = null;
   private onLeadershipChange?: (isLeader: boolean) => void;
+  private startTime = Date.now();
+  private conflictDetected = false;
 
   constructor() {
     this.tabId = this.generateTabId();
   }
 
   private generateTabId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${performance.now()}`;
   }
 
   start(onLeadershipChange: (isLeader: boolean) => void) {
     this.onLeadershipChange = onLeadershipChange;
     
-    // Try to become leader immediately
-    this.tryBecomeLeader();
+    console.log(`[LeaderElection] Starting - Tab ID: ${this.tabId}`);
     
-    // Check leadership periodically
+    // Add a small random delay to prevent race conditions when multiple tabs start simultaneously
+    const jitter = Math.random() * 500;
+    setTimeout(() => {
+      this.tryBecomeLeader();
+    }, jitter);
+    
+    // Check leadership periodically with jitter
     this.checkTimer = window.setInterval(() => {
       this.checkLeadership();
-    }, this.heartbeatInterval);
+    }, this.heartbeatInterval + Math.random() * 200);
 
     // Listen for storage changes (other tabs updating leadership)
     window.addEventListener('storage', this.handleStorageChange);
@@ -37,28 +44,40 @@ export class LeaderElection {
 
   private tryBecomeLeader() {
     const current = this.getCurrentLeader();
+    const now = Date.now();
     
-    if (!current || Date.now() - current.timestamp > this.timeout) {
-      // No leader or leader is dead, try to become leader
+    if (!current || now - current.timestamp > this.timeout) {
+      console.log(`[LeaderElection] No leader or leader timeout (${current ? now - current.timestamp : 'no leader'}ms), attempting to become leader`);
       this.setAsLeader();
     } else if (current.tabId === this.tabId) {
       // We are already the leader, update heartbeat
       this.setAsLeader();
+    } else {
+      console.log(`[LeaderElection] Another tab is leader: ${current.tabId.slice(0, 20)}... (${now - current.timestamp}ms ago)`);
     }
   }
 
   private setAsLeader() {
     const leaderData = {
       tabId: this.tabId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      startTime: this.startTime
     };
     
     try {
+      // Double-check no one else became leader in the meantime
+      const current = this.getCurrentLeader();
+      if (current && current.tabId !== this.tabId && Date.now() - current.timestamp < this.timeout) {
+        console.log('[LeaderElection] Conflict detected, another tab became leader');
+        this.conflictDetected = true;
+        return;
+      }
+      
       localStorage.setItem(this.key, JSON.stringify(leaderData));
       
       if (!this.isLeader) {
         this.isLeader = true;
-        console.log('[LeaderElection] This tab is now the leader');
+        console.log(`[LeaderElection] This tab is now the leader - Tab ID: ${this.tabId.slice(0, 20)}...`);
         this.onLeadershipChange?.(true);
       }
       
@@ -105,11 +124,13 @@ export class LeaderElection {
     }
   }
 
-  private getCurrentLeader(): { tabId: string; timestamp: number } | null {
+  private getCurrentLeader(): { tabId: string; timestamp: number; startTime?: number } | null {
     try {
       const data = localStorage.getItem(this.key);
       return data ? JSON.parse(data) : null;
-    } catch {
+    } catch (error) {
+      console.error('[LeaderElection] Failed to parse leader data:', error);
+      localStorage.removeItem(this.key); // Clean up corrupted data
       return null;
     }
   }
@@ -121,10 +142,13 @@ export class LeaderElection {
   };
 
   stop() {
+    console.log(`[LeaderElection] Stopping - Tab ID: ${this.tabId.slice(0, 20)}...`);
+    
     // If we're the leader, remove our leadership
     const current = this.getCurrentLeader();
     if (current && current.tabId === this.tabId) {
       localStorage.removeItem(this.key);
+      console.log('[LeaderElection] Leadership removed');
     }
     
     if (this.heartbeatTimer) {

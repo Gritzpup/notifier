@@ -133,6 +133,9 @@ export class TelegramService {
   private maxReconnectAttempts = 5;
   private userPhotoCache = new Map<number, string | null>(); // Cache user photos
   private isLeaderTab = false;
+  public readonly sessionId = crypto.randomUUID();
+  public conflictCount = 0;
+  public lastPollTime = 0;
 
   constructor(token: string, groupFilter: string[] = []) {
     this.token = token;
@@ -201,9 +204,11 @@ export class TelegramService {
   private async startPolling() {
     if (this.isPolling || this.isDestroyed) return;
     
+    console.log(`[Telegram] Starting polling - Session: ${this.sessionId.slice(0, 8)}`);
     connectionsStore.setConnecting('telegram');
     broadcastService.send('telegram-status', { connected: false });
     this.isPolling = true;
+    this.conflictCount = 0;
     
     try {
       // Get bot info first
@@ -248,12 +253,22 @@ export class TelegramService {
     if (this.isDestroyed || !this.isPolling || !this.isLeaderTab) return;
     
     try {
+      this.lastPollTime = Date.now();
+      console.log(`[Telegram] Starting poll - Session: ${this.sessionId.slice(0, 8)}, Offset: ${this.offset}`);
+      
       const response = await fetch(
         `https://api.telegram.org/bot${this.token}/getUpdates?offset=${this.offset}&timeout=30`,
         { signal: AbortSignal.timeout(35000) } // 35 second timeout (30s long poll + 5s buffer)
       );
       
       if (!response.ok) {
+        if (response.status === 409) {
+          this.conflictCount++;
+          const errorBody = await response.text();
+          console.error(`[Telegram] 409 Conflict #${this.conflictCount} - Session: ${this.sessionId.slice(0, 8)}`);
+          console.error('[Telegram] Conflict details:', errorBody);
+          throw new Error(`Conflict (409) - Another instance is polling. Count: ${this.conflictCount}`);
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
@@ -266,6 +281,9 @@ export class TelegramService {
         }
       }
       
+      // Reset conflict count on successful poll
+      this.conflictCount = 0;
+      
       // Continue polling only if we're still the leader
       if (this.isPolling && !this.isDestroyed && this.isLeaderTab) {
         this.poll();
@@ -274,8 +292,29 @@ export class TelegramService {
       console.error('[Telegram] Polling error:', error);
       
       if (!this.isDestroyed && this.isLeaderTab) {
-        // Retry with exponential backoff
-        const delay = Math.min(Math.pow(2, Math.min(this.reconnectAttempts, 5)) * 1000, 30000);
+        let delay: number;
+        
+        // Special handling for 409 conflicts
+        if (error instanceof Error && error.message.includes('Conflict (409)')) {
+          // Use longer delays for conflicts to allow other instance to timeout
+          if (this.conflictCount <= 3) {
+            delay = 45000; // 45 seconds for first 3 attempts
+          } else if (this.conflictCount <= 6) {
+            delay = 60000; // 60 seconds for next 3 attempts
+          } else {
+            // After 6 attempts, force takeover by resetting offset
+            console.log('[Telegram] Force takeover after multiple conflicts, resetting offset');
+            this.offset = 0;
+            delay = 5000;
+            this.conflictCount = 0;
+          }
+          console.log(`[Telegram] Waiting ${delay/1000}s before retry due to conflict`);
+        } else {
+          // Regular exponential backoff for other errors
+          delay = Math.min(Math.pow(2, Math.min(this.reconnectAttempts, 5)) * 1000, 30000);
+          this.reconnectAttempts++;
+        }
+        
         this.pollingTimeout = window.setTimeout(() => this.poll(), delay);
       }
     }

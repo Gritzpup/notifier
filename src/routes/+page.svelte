@@ -3,6 +3,7 @@
   import { connectionsStore } from '$lib/stores/connections';
   import ConnectionStatus from '$lib/components/ConnectionStatus.svelte';
   import MessageFeed from '$lib/components/MessageFeed.svelte';
+  import DebugPanel from '$lib/components/DebugPanel.svelte';
   import { DiscordService } from '$lib/services/discord';
   import { TelegramService } from '$lib/services/telegram';
   import { TwitchService } from '$lib/services/twitch';
@@ -49,6 +50,8 @@
     
     if (hasTelegramConfig()) {
       telegramService = new TelegramService(config.telegram.botToken, config.telegram.groups);
+      // Expose for debugging
+      (window as any).telegramService = telegramService;
       telegramService.connect();
     }
     
@@ -66,6 +69,11 @@
     discordService = null;
     telegramService = null;
     twitchService = null;
+    
+    // Clean up window reference
+    if ((window as any).telegramService) {
+      delete (window as any).telegramService;
+    }
   }
   
   async function handleInstall() {
@@ -137,6 +145,7 @@
       </div>
     </div>
   </main>
+  <DebugPanel />
 </div>
 
 <style>
