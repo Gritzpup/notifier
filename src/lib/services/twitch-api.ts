@@ -30,7 +30,7 @@ export class TwitchAPIClient {
     this.clientSecret = clientSecret;
   }
 
-  private async getAccessToken(): Promise<string> {
+  async getAccessToken(): Promise<string> {
     // Check if we have a valid token
     if (this.accessToken && Date.now() < this.tokenExpiry) {
       return this.accessToken;

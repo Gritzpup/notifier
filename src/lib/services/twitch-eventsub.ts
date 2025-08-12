@@ -1,5 +1,6 @@
 import { messagesStore } from '$lib/stores/messages';
-import { TwitchAPI } from './twitch-api';
+import { getTwitchAPIClient } from './twitch-api';
+import { config } from '$lib/config';
 
 interface EventSubMessage {
   metadata: {
@@ -177,8 +178,12 @@ export class TwitchEventSubService {
     
     try {
       // Get access token
-      const tokenResponse = await TwitchAPI.getAccessToken();
-      if (!tokenResponse) {
+      const apiClient = getTwitchAPIClient(config.twitch.clientId, config.twitch.clientSecret);
+      if (!apiClient) {
+        throw new Error('Failed to get Twitch API client');
+      }
+      const accessToken = await apiClient.getAccessToken();
+      if (!accessToken) {
         throw new Error('Failed to get access token');
       }
       
@@ -186,7 +191,7 @@ export class TwitchEventSubService {
       const params = usernames.map(u => `login=${u}`).join('&');
       const response = await fetch(`https://api.twitch.tv/helix/users?${params}`, {
         headers: {
-          'Authorization': `Bearer ${tokenResponse.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Client-Id': import.meta.env.VITE_TWITCH_CLIENT_ID
         }
       });
@@ -227,7 +232,11 @@ export class TwitchEventSubService {
       return;
     }
     
-    const tokenResponse = await TwitchAPI.getAccessToken();
+    const apiClient = getTwitchAPIClient(config.twitch.clientId, config.twitch.clientSecret);
+    if (!apiClient) {
+      throw new Error('Failed to get Twitch API client');
+    }
+    const accessToken = await apiClient.getAccessToken();
     if (!tokenResponse) {
       throw new Error('Failed to get access token');
     }
@@ -247,7 +256,7 @@ export class TwitchEventSubService {
     const response = await fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${tokenResponse.access_token}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Client-Id': import.meta.env.VITE_TWITCH_CLIENT_ID,
         'Content-Type': 'application/json'
       },
@@ -347,15 +356,19 @@ export class TwitchEventSubService {
   
   private async getStreamInfo(username: string) {
     try {
-      const tokenResponse = await TwitchAPI.getAccessToken();
-      if (!tokenResponse) {
+      const apiClient = getTwitchAPIClient(config.twitch.clientId, config.twitch.clientSecret);
+      if (!apiClient) {
+        throw new Error('Failed to get Twitch API client');
+      }
+      const accessToken = await apiClient.getAccessToken();
+      if (!accessToken) {
         throw new Error('Failed to get access token');
       }
       
       // Get stream info
       const streamResponse = await fetch(`https://api.twitch.tv/helix/streams?user_login=${username}`, {
         headers: {
-          'Authorization': `Bearer ${tokenResponse.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Client-Id': import.meta.env.VITE_TWITCH_CLIENT_ID
         }
       });
@@ -375,7 +388,7 @@ export class TwitchEventSubService {
       // Get user info for profile picture
       const userResponse = await fetch(`https://api.twitch.tv/helix/users?id=${stream.user_id}`, {
         headers: {
-          'Authorization': `Bearer ${tokenResponse.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Client-Id': import.meta.env.VITE_TWITCH_CLIENT_ID
         }
       });
