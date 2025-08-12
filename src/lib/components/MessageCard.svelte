@@ -11,41 +11,48 @@
   let platformGradient = '';
   let platformBgGlow = '';
   
-  $: switch(message.platform) {
-    case 'discord':
-      platformColor = 'border-l-indigo-500';
-      platformGradient = 'from-indigo-500/20 to-transparent';
-      platformBgGlow = 'shadow-indigo-500/20';
-      break;
-    case 'telegram':
-      platformColor = 'border-l-sky-500';
-      platformGradient = 'from-sky-500/20 to-transparent';
-      platformBgGlow = 'shadow-sky-500/20';
-      break;
-    case 'email':
-      platformColor = 'border-l-emerald-500';
-      platformGradient = 'from-emerald-500/20 to-transparent';
-      platformBgGlow = 'shadow-emerald-500/20';
-      break;
-    case 'slack':
-      platformColor = 'border-l-purple-500';
-      platformGradient = 'from-purple-500/20 to-transparent';
-      platformBgGlow = 'shadow-purple-500/20';
-      break;
-    case 'whatsapp':
-      platformColor = 'border-l-green-500';
-      platformGradient = 'from-green-500/20 to-transparent';
-      platformBgGlow = 'shadow-green-500/20';
-      break;
-    case 'twitch':
-      platformColor = 'border-l-violet-500';
-      platformGradient = 'from-violet-500/20 to-transparent';
-      platformBgGlow = 'shadow-violet-500/20';
-      break;
-    default:
-      platformColor = 'border-l-gray-500';
-      platformGradient = 'from-gray-500/20 to-transparent';
-      platformBgGlow = 'shadow-gray-500/20';
+  // Special styling for stream notifications
+  $: if (message.isStreamNotification && message.platform === 'twitch') {
+    platformColor = 'border-l-purple-600';
+    platformGradient = 'from-purple-600/30 to-violet-600/10';
+    platformBgGlow = 'shadow-purple-600/30';
+  } else {
+    switch(message.platform) {
+      case 'discord':
+        platformColor = 'border-l-indigo-500';
+        platformGradient = 'from-indigo-500/20 to-transparent';
+        platformBgGlow = 'shadow-indigo-500/20';
+        break;
+      case 'telegram':
+        platformColor = 'border-l-sky-500';
+        platformGradient = 'from-sky-500/20 to-transparent';
+        platformBgGlow = 'shadow-sky-500/20';
+        break;
+      case 'email':
+        platformColor = 'border-l-emerald-500';
+        platformGradient = 'from-emerald-500/20 to-transparent';
+        platformBgGlow = 'shadow-emerald-500/20';
+        break;
+      case 'slack':
+        platformColor = 'border-l-purple-500';
+        platformGradient = 'from-purple-500/20 to-transparent';
+        platformBgGlow = 'shadow-purple-500/20';
+        break;
+      case 'whatsapp':
+        platformColor = 'border-l-green-500';
+        platformGradient = 'from-green-500/20 to-transparent';
+        platformBgGlow = 'shadow-green-500/20';
+        break;
+      case 'twitch':
+        platformColor = 'border-l-violet-500';
+        platformGradient = 'from-violet-500/20 to-transparent';
+        platformBgGlow = 'shadow-violet-500/20';
+        break;
+      default:
+        platformColor = 'border-l-gray-500';
+        platformGradient = 'from-gray-500/20 to-transparent';
+        platformBgGlow = 'shadow-gray-500/20';
+    }
   }
   
   function formatTime(date: Date) {
@@ -61,7 +68,7 @@
 </script>
 
 <div 
-  class="message-card p-6 lg:p-8 rounded-2xl border-l-4 {platformColor} bg-gradient-to-r {platformGradient} transition-all duration-300 cursor-pointer {message.isRead ? 'opacity-60' : ''} shadow-lg hover:shadow-xl {platformBgGlow}"
+  class="message-card p-6 lg:p-8 rounded-2xl border-l-4 {platformColor} bg-gradient-to-r {platformGradient} transition-all duration-300 cursor-pointer {message.isRead ? 'opacity-60' : ''} shadow-lg hover:shadow-xl {platformBgGlow} {message.isStreamNotification ? 'stream-notification' : ''}"
   on:click={markAsRead}
   on:keydown={(e) => e.key === 'Enter' && markAsRead()}
   role="button"
@@ -196,5 +203,38 @@
   
   .message-card:not(.opacity-60) {
     animation: messageGlow 10s ease-out forwards;
+  }
+  
+  /* Stream notification special styling */
+  .stream-notification {
+    border-left-width: 6px;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .stream-notification::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #9333ea, #a855f7, #9333ea);
+    border-radius: inherit;
+    opacity: 0;
+    z-index: -1;
+    animation: streamPulse 2s ease-in-out infinite;
+  }
+  
+  @keyframes streamPulse {
+    0%, 100% {
+      opacity: 0;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.3;
+      transform: scale(1.02);
+    }
   }
 </style>

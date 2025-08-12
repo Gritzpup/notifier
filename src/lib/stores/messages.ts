@@ -40,7 +40,9 @@ export interface TwitchEmote {
 
 export interface DiscordEmbed {
   title?: string;
+  type?: string;
   description?: string;
+  url?: string;
   color?: number;
   author?: {
     name: string;
@@ -106,6 +108,7 @@ export interface Message {
     content: string;
   };
   platformMessageId?: string;
+  isStreamNotification?: boolean;
 }
 
 export type FilterType = Platform | 'all';

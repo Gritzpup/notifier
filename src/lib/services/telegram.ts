@@ -125,6 +125,7 @@ interface TelegramResponse {
 export class TelegramService {
   private token: string;
   private groupFilter: string[];
+  private excludeGroups: string[];
   private offset = 0;
   private isPolling = false;
   private isDestroyed = false;
@@ -138,9 +139,14 @@ export class TelegramService {
   public lastPollTime = 0;
   private statusBroadcastInterval: number | null = null;
 
-  constructor(token: string, groupFilter: string[] = []) {
+  constructor(token: string, groupFilter: string[] = [], excludeGroups: string[] = []) {
     this.token = token;
     this.groupFilter = groupFilter;
+    this.excludeGroups = excludeGroups;
+    
+    console.log('[Telegram] Service initialized with:');
+    console.log('  Group filter:', groupFilter.length > 0 ? groupFilter : 'All groups');
+    console.log('  Exclude groups:', excludeGroups.length > 0 ? excludeGroups : 'None');
     
     // Listen for messages broadcast from other tabs
     broadcastService.on('telegram-message', (messageData) => {
@@ -519,8 +525,17 @@ export class TelegramService {
       const chat = update.message.chat;
       const from = update.message.from;
       
+      // Log the chat info for debugging
+      console.log(`[Telegram] Processing message from chat: ${chat.title || 'Private'} (ID: ${chat.id})`);
+      
       // Skip if we have a filter and this chat is not in the filter
       if (this.groupFilter.length > 0 && !this.groupFilter.includes(chat.id.toString())) {
+        return;
+      }
+      
+      // Skip if this chat is in the exclude list
+      if (this.excludeGroups.includes(chat.id.toString())) {
+        console.log(`[Telegram] Skipping excluded group: ${chat.title || chat.id}`);
         return;
       }
       

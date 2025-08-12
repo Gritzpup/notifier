@@ -324,7 +324,13 @@
           {/if}
           
           {#if embed.title}
-            <div class="embed-title">{embed.title}</div>
+            {#if embed.url}
+              <a href={embed.url} target="_blank" rel="noopener noreferrer" class="embed-title-link">
+                <div class="embed-title">{embed.title}</div>
+              </a>
+            {:else}
+              <div class="embed-title">{embed.title}</div>
+            {/if}
           {/if}
           
           {#if embed.description}
@@ -630,6 +636,16 @@
   .embed-title {
     font-weight: 600;
     margin-bottom: 0.25rem;
+  }
+  
+  .embed-title-link {
+    text-decoration: none;
+    color: inherit;
+  }
+  
+  .embed-title-link:hover .embed-title {
+    text-decoration: underline;
+    color: #a78bfa;
   }
   
   .embed-description {

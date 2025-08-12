@@ -7,12 +7,14 @@
   import { DiscordService } from '$lib/services/discord';
   import { TelegramService } from '$lib/services/telegram';
   import { TwitchService } from '$lib/services/twitch';
+  import { TwitchEventSubService } from '$lib/services/twitch-eventsub';
   import { config, hasDiscordConfig, hasTelegramConfig, hasTwitchConfig } from '$lib/config';
   import { page } from '$app/stores';
   
   let discordService: DiscordService | null = null;
   let telegramService: TelegramService | null = null;
   let twitchService: TwitchService | null = null;
+  let twitchEventSubService: TwitchEventSubService | null = null;
   let showInstallPrompt = false;
   let deferredPrompt: any = null;
   
@@ -49,7 +51,7 @@
     }
     
     if (hasTelegramConfig()) {
-      telegramService = new TelegramService(config.telegram.botToken, config.telegram.groups);
+      telegramService = new TelegramService(config.telegram.botToken, config.telegram.groups, config.telegram.excludeGroups);
       // Expose for debugging
       (window as any).telegramService = telegramService;
       telegramService.connect();
@@ -58,6 +60,12 @@
     if (hasTwitchConfig()) {
       twitchService = new TwitchService(config.twitch);
       twitchService.connect();
+      
+      // Connect EventSub for stream notifications if monitors are configured
+      if (config.twitch.streamMonitors.length > 0) {
+        twitchEventSubService = new TwitchEventSubService(config.twitch.streamMonitors);
+        twitchEventSubService.connect();
+      }
     }
   }
   
@@ -65,10 +73,12 @@
     discordService?.disconnect();
     telegramService?.disconnect();
     twitchService?.disconnect();
+    twitchEventSubService?.disconnect();
     
     discordService = null;
     telegramService = null;
     twitchService = null;
+    twitchEventSubService = null;
     
     // Clean up window reference
     if ((window as any).telegramService) {
