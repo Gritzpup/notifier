@@ -52,7 +52,10 @@ export class TwitchEventSubService {
   
   constructor(streamMonitors: string[]) {
     this.streamMonitors = streamMonitors;
-    console.log('[TwitchEventSub] Initialized with stream monitors:', streamMonitors);
+    console.log('[TwitchEventSub] ===== INITIALIZATION =====');
+    console.log('[TwitchEventSub] Stream monitors:', streamMonitors);
+    console.log('[TwitchEventSub] Total monitors:', streamMonitors.length);
+    console.log('[TwitchEventSub] =========================');
   }
   
   async connect() {
@@ -113,6 +116,9 @@ export class TwitchEventSubService {
         break;
         
       case 'notification':
+        console.log('[TwitchEventSub] 🔔 NOTIFICATION RECEIVED!');
+        console.log('[TwitchEventSub] Subscription type:', metadata.subscription_type);
+        console.log('[TwitchEventSub] Event data:', JSON.stringify(payload, null, 2));
         if (metadata.subscription_type === 'stream.online') {
           await this.handleStreamOnline(payload!.event!);
         }
@@ -134,14 +140,18 @@ export class TwitchEventSubService {
     this.sessionId = session.id;
     this.isConnected = true;
     
+    console.log('[TwitchEventSub] ===== SESSION WELCOME =====');
     console.log('[TwitchEventSub] Session established:', this.sessionId);
     console.log('[TwitchEventSub] Keepalive timeout:', session.keepalive_timeout_seconds, 'seconds');
+    console.log('[TwitchEventSub] Reconnect URL:', session.reconnect_url || 'none');
     
     // Set up keepalive timer
     this.resetKeepaliveTimer(session.keepalive_timeout_seconds);
     
     // Subscribe to stream.online events for each monitor
+    console.log('[TwitchEventSub] Starting stream event subscriptions...');
     await this.subscribeToStreamEvents();
+    console.log('[TwitchEventSub] =========================');
   }
   
   private resetKeepaliveTimer(timeoutSeconds: number = 10) {
@@ -192,7 +202,7 @@ export class TwitchEventSubService {
       const response = await fetch(`https://api.twitch.tv/helix/users?${params}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Client-Id': import.meta.env.VITE_TWITCH_CLIENT_ID
+          'Client-Id': config.twitch.clientId
         }
       });
       
@@ -257,7 +267,7 @@ export class TwitchEventSubService {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'Client-Id': import.meta.env.VITE_TWITCH_CLIENT_ID,
+        'Client-Id': config.twitch.clientId,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
@@ -277,16 +287,20 @@ export class TwitchEventSubService {
   private async handleStreamOnline(event: any) {
     const { broadcaster_user_login, broadcaster_user_name, started_at } = event;
     
+    console.log('[TwitchEventSub] 🔴 STREAM ONLINE EVENT!');
+    console.log('[TwitchEventSub] Broadcaster:', broadcaster_user_name, `(${broadcaster_user_login})`);
+    console.log('[TwitchEventSub] Started at:', started_at);
+    
     // Check if we've already notified about this stream
     const streamKey = `${broadcaster_user_login}-${started_at}`;
     if (this.notifiedStreams.has(streamKey)) {
-      console.log(`[TwitchEventSub] Already notified about ${broadcaster_user_login} stream`);
+      console.log(`[TwitchEventSub] ⏸️ Already notified about ${broadcaster_user_login} stream`);
       return;
     }
     
     this.notifiedStreams.add(streamKey);
     
-    console.log(`[TwitchEventSub] Stream went online: ${broadcaster_user_name} (${broadcaster_user_login})`);
+    console.log(`[TwitchEventSub] 🎆 Creating notification for: ${broadcaster_user_name} (${broadcaster_user_login})`);
     
     // Get stream details
     try {
@@ -369,7 +383,7 @@ export class TwitchEventSubService {
       const streamResponse = await fetch(`https://api.twitch.tv/helix/streams?user_login=${username}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Client-Id': import.meta.env.VITE_TWITCH_CLIENT_ID
+          'Client-Id': config.twitch.clientId
         }
       });
       
@@ -389,7 +403,7 @@ export class TwitchEventSubService {
       const userResponse = await fetch(`https://api.twitch.tv/helix/users?id=${stream.user_id}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Client-Id': import.meta.env.VITE_TWITCH_CLIENT_ID
+          'Client-Id': config.twitch.clientId
         }
       });
       

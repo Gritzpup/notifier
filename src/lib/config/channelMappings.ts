@@ -27,6 +27,7 @@ export const telegramTopicNames: Record<string, string> = {
   '453': 'music',
   '432': 'art',
   '748': 'pets',
+  '4680': 'tech',
   'null': 'general' // Special case for general chat
 };
 
