@@ -137,6 +137,43 @@ function createMessagesStore() {
       console.log('Channel ID:', message.channelId);
       
       update(state => {
+        // Check for duplicate/relayed messages
+        const isDuplicate = state.messages.some(existingMsg => {
+          // Skip if same platform - we only check cross-platform duplicates
+          if (existingMsg.platform === message.platform) return false;
+          
+          // Get message content without relay prefixes
+          const cleanContent = (content: string) => {
+            // Remove common relay prefixes
+            return content
+              .replace(/^↩️ Replying to .+?: /, '') // Remove Twitch relay prefix
+              .replace(/^\[.+?\]\s*/, '') // Remove [Platform] prefix
+              .replace(/^.+? \[Telegram\] .+?: /, '') // Remove Telegram relay format
+              .replace(/^.+? \[Discord\] .+?: /, '') // Remove Discord relay format
+              .trim();
+          };
+          
+          const existingContent = cleanContent(existingMsg.content || '');
+          const newContent = cleanContent(message.content || '');
+          
+          // Check if content matches (case insensitive)
+          if (existingContent.toLowerCase() === newContent.toLowerCase()) {
+            // Check if messages are within 5 seconds of each other
+            const timeDiff = Math.abs(new Date().getTime() - existingMsg.timestamp.getTime());
+            if (timeDiff < 5000) {
+              console.log(`[Duplicate Detection] Blocking relayed message: "${newContent.substring(0, 50)}..."`);
+              return true;
+            }
+          }
+          
+          return false;
+        });
+        
+        // Don't add the message if it's a duplicate
+        if (isDuplicate) {
+          return state;
+        }
+        
         const newMessage = {
           ...message,
           id: `${message.platform}-${Date.now()}-${Math.random()}`,

@@ -65,6 +65,24 @@ export class TwitchChatService {
               tagDict[key] = value;
             });
             
+            // Skip messages from known relay bots
+            const relayBots = ['twitchrelayer', 'relaybot', 'bridgebot'];
+            const isRelayBot = relayBots.some(bot => 
+              username.toLowerCase().includes(bot) || 
+              (tagDict['display-name'] && tagDict['display-name'].toLowerCase().includes(bot))
+            );
+            
+            // Skip relayed messages (ones that look like they're from other platforms)
+            const isRelayedMessage = content.includes('↩️ Replying to') || 
+                                   content.includes('[Telegram]') || 
+                                   content.includes('[Discord]') ||
+                                   content.match(/^\[.+?\]\s+.+?:/);
+            
+            if (isRelayBot || isRelayedMessage) {
+              console.log(`[Twitch Chat] Skipping relayed message from ${username}: "${content.substring(0, 50)}..."`);
+              return;
+            }
+            
             const messageData = {
               id: `twitch-${tagDict['id'] || Date.now()}`,
               platform: 'twitch',
@@ -79,6 +97,7 @@ export class TwitchChatService {
             };
             
             // Broadcast to all connected clients
+            console.log(`[Twitch Chat] Broadcasting message from ${messageData.author}: "${messageData.content.substring(0, 50)}..."`);
             this.io.emit('new-message', messageData);
           }
         }
