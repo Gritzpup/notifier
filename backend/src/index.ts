@@ -5,6 +5,10 @@ import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import { authRouter } from './routes/auth.js';
 import { DiscordOAuthService } from './services/discord-oauth.js';
+import { DiscordBotService } from './services/discord-bot.js';
+import { TelegramBotService } from './services/telegram-bot.js';
+import { TwitchChatService } from './services/twitch-chat.js';
+import { TwitchEventSubService } from './services/twitch-eventsub.js';
 
 dotenv.config({ path: '../.env' });
 
@@ -12,26 +16,88 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
-    credentials: true
+    origin: (origin, callback) => {
+      // Allow all origins in development (you can restrict this in production)
+      callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST']
   }
 });
 
-const PORT = process.env.VITE_BACKEND_PORT || 2002;
+const PORT = process.env.VITE_BACKEND_PORT || 7392;
+
+// Initialize bot services
+const discordBot = new DiscordBotService(io);
+const telegramBot = new TelegramBotService(io);
+const twitchChat = new TwitchChatService(io);
+const twitchEventSub = new TwitchEventSubService(io);
+
+// Auto-connect services if tokens are available
+const discordToken = process.env.VITE_DISCORD_TOKEN || process.env.VITE_DISCORD_BOT_TOKEN;
+if (discordToken) {
+  console.log('[Backend] Auto-connecting Discord bot...');
+  discordBot.connect(discordToken);
+}
+
+const telegramToken = process.env.VITE_TELEGRAM_TOKEN || process.env.VITE_TELEGRAM_BOT_TOKEN;
+if (telegramToken) {
+  console.log('[Backend] Auto-connecting Telegram bot...');
+  const groupFilter = process.env.VITE_TELEGRAM_GROUP_FILTER?.split(',').map(g => g.trim()) || [];
+  const excludeGroups = process.env.VITE_TELEGRAM_EXCLUDE_GROUPS?.split(',').map(g => g.trim()) || [];
+  telegramBot.connect(telegramToken, groupFilter, excludeGroups);
+}
+
+// Auto-connect Twitch services if configured
+const twitchChannel = process.env.VITE_TWITCH_CHANNEL || process.env.VITE_TWITCH_CHANNEL_NAME;
+if (twitchChannel) {
+  console.log('[Backend] Auto-connecting Twitch chat...');
+  twitchChat.connect(twitchChannel);
+}
+
+const twitchClientId = process.env.VITE_TWITCH_CLIENT_ID;
+const twitchClientSecret = process.env.VITE_TWITCH_CLIENT_SECRET;
+const streamMonitors = process.env.VITE_TWITCH_STREAM_MONITORS?.split(',').map(s => s.trim()) || [];
+if (twitchClientId && twitchClientSecret && streamMonitors.length > 0) {
+  console.log('[Backend] Auto-connecting Twitch EventSub...');
+  twitchEventSub.connect(twitchClientId, twitchClientSecret, streamMonitors);
+}
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
-  credentials: true
+  origin: (origin, callback) => {
+    // Allow all origins in development
+    callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS']
 }));
 app.use(express.json());
 
 // Routes
 app.use('/auth', authRouter);
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    port: PORT,
+    discord: discordBot.getStatus(),
+    telegram: telegramBot.getStatus(),
+    twitch: twitchChat.getStatus(),
+    twitchEventSub: twitchEventSub.getStatus()
+  });
+});
+
 // Socket.io connection
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
+  
+  // Send current service status to new client
+  socket.emit('service-status', discordBot.getStatus());
+  socket.emit('service-status', telegramBot.getStatus());
+  socket.emit('service-status', twitchChat.getStatus());
+  socket.emit('service-status', twitchEventSub.getStatus());
   
   socket.on('start-dm-polling', async (accessToken: string) => {
     const oauthService = new DiscordOAuthService(accessToken, socket);
@@ -53,6 +119,8 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Backend server running on http://localhost:${PORT}`);
+const portNumber = typeof PORT === 'string' ? parseInt(PORT, 10) : PORT;
+server.listen(portNumber, '0.0.0.0', () => {
+  console.log(`Backend server running on http://0.0.0.0:${portNumber}`);
 });
+

@@ -134,10 +134,23 @@ export class TelegramService {
   private maxReconnectAttempts = 5;
   private userPhotoCache = new Map<number, string | null>(); // Cache user photos
   private isLeaderTab = false;
-  public readonly sessionId = crypto.randomUUID();
+  public readonly sessionId = this.generateUUID();
   public conflictCount = 0;
   public lastPollTime = 0;
   private statusBroadcastInterval: number | null = null;
+
+  private generateUUID(): string {
+    // Fallback for browsers that don't support crypto.randomUUID
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    // Simple UUID v4 implementation
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
 
   constructor(token: string, groupFilter: string[] = [], excludeGroups: string[] = []) {
     this.token = token;

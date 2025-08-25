@@ -4,7 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   server: {
-    port: 6173
+    port: 6173,
+    host: '0.0.0.0'
   },
   plugins: [
     sveltekit(),

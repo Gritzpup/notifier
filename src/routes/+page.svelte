@@ -10,6 +10,7 @@
   import { TwitchEventSubService } from '$lib/services/twitch-eventsub';
   import { config, hasDiscordConfig, hasTelegramConfig, hasTwitchConfig } from '$lib/config';
   import { page } from '$app/stores';
+  import { initializeSocket, disconnectSocket } from '$lib/services/socket';
   
   let discordService: DiscordService | null = null;
   let telegramService: TelegramService | null = null;
@@ -19,10 +20,12 @@
   let deferredPrompt: any = null;
   
   onMount(() => {
+    // Initialize WebSocket connection to backend
+    initializeSocket();
     
-    
-    // Auto-connect services based on env config
-    connectServices();
+    // All clients should use backend services - no local connections
+    console.log('[Frontend] Using centralized backend services via WebSocket');
+    // Don't call connectServices() - let backend handle everything
     
     // Listen for PWA install prompt
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -84,6 +87,9 @@
     if ((window as any).telegramService) {
       delete (window as any).telegramService;
     }
+    
+    // Disconnect WebSocket
+    disconnectSocket();
   }
   
   async function handleInstall() {
