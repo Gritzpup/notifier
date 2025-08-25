@@ -89,7 +89,7 @@ export class TwitchChatService {
               platformMessageId: tagDict['id'] || String(Date.now()),
               author: tagDict['display-name'] || username,
               content: content,
-              avatarUrl: null,
+              avatarUrl: `https://unavatar.io/twitch/${username}`,
               channelId: this.channel,
               channelName: this.channel,
               color: tagDict['color'] || null,

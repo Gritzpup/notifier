@@ -54,7 +54,7 @@ export class DiscordBotService {
           platformMessageId: message.id,
           author: message.author.username,
           content: message.content,
-          avatarUrl: message.author.displayAvatarURL(),
+          avatarUrl: message.author.displayAvatarURL() || `https://cdn.discordapp.com/embed/avatars/${parseInt(message.author.discriminator || '0') % 5}.png`,
           channelId: message.channelId,
           channelName: message.channel.type === 1 ? 'Direct Message' : 
                        (message.channel as any).name || 'Unknown',

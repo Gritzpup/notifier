@@ -9,6 +9,7 @@ import { DiscordBotService } from './services/discord-bot.js';
 import { TelegramBotService } from './services/telegram-bot.js';
 import { TwitchChatService } from './services/twitch-chat.js';
 import { TwitchEventSubService } from './services/twitch-eventsub.js';
+import { TwitchStreamsService } from './services/twitch-streams.js';
 
 dotenv.config({ path: '../.env' });
 
@@ -32,6 +33,7 @@ const discordBot = new DiscordBotService(io);
 const telegramBot = new TelegramBotService(io);
 const twitchChat = new TwitchChatService(io);
 const twitchEventSub = new TwitchEventSubService(io);
+const twitchStreams = new TwitchStreamsService(io);
 
 // Auto-connect services if tokens are available
 const discordToken = process.env.VITE_DISCORD_TOKEN || process.env.VITE_DISCORD_BOT_TOKEN;
@@ -59,8 +61,9 @@ const twitchClientId = process.env.VITE_TWITCH_CLIENT_ID;
 const twitchClientSecret = process.env.VITE_TWITCH_CLIENT_SECRET;
 const streamMonitors = process.env.VITE_TWITCH_STREAM_MONITORS?.split(',').map(s => s.trim()) || [];
 if (twitchClientId && twitchClientSecret && streamMonitors.length > 0) {
-  console.log('[Backend] Auto-connecting Twitch EventSub...');
-  twitchEventSub.connect(twitchClientId, twitchClientSecret, streamMonitors);
+  console.log('[Backend] Auto-connecting Twitch Stream Monitor...');
+  // Use the simpler streams API instead of EventSub (doesn't require user auth)
+  twitchStreams.connect(twitchClientId, twitchClientSecret, streamMonitors);
 }
 
 // Middleware
@@ -85,7 +88,8 @@ app.get('/health', (req, res) => {
     discord: discordBot.getStatus(),
     telegram: telegramBot.getStatus(),
     twitch: twitchChat.getStatus(),
-    twitchEventSub: twitchEventSub.getStatus()
+    twitchEventSub: twitchEventSub.getStatus(),
+    twitchStreams: twitchStreams.getStatus()
   });
 });
 
@@ -97,7 +101,7 @@ io.on('connection', (socket) => {
   socket.emit('service-status', discordBot.getStatus());
   socket.emit('service-status', telegramBot.getStatus());
   socket.emit('service-status', twitchChat.getStatus());
-  socket.emit('service-status', twitchEventSub.getStatus());
+  socket.emit('service-status', twitchStreams.getStatus());
   
   socket.on('start-dm-polling', async (accessToken: string) => {
     const oauthService = new DiscordOAuthService(accessToken, socket);

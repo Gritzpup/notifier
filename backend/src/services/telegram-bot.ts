@@ -107,7 +107,7 @@ export class TelegramBotService {
               platformMessageId: String(message.message_id),
               author: message.from.username || message.from.first_name,
               content: message.text,
-              avatarUrl: null,
+              avatarUrl: message.from.username ? `https://unavatar.io/telegram/${message.from.username}` : null,
               channelId: String(message.chat.id),
               channelName: chatName,
               isGroup: message.chat.type === 'group' || message.chat.type === 'supergroup',
