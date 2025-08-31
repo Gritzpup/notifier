@@ -79,7 +79,7 @@ export class TwitchChatService {
                                    content.match(/^\[.+?\]\s+.+?:/);
             
             if (isRelayBot || isRelayedMessage) {
-              console.log(`[Twitch Chat] Skipping relayed message from ${username}: "${content.substring(0, 50)}..."`);
+              // console.log(`[Twitch Chat] Skipping relayed message from ${username}: "${content.substring(0, 50)}..."`);
               return;
             }
             

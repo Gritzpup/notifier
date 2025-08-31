@@ -115,7 +115,7 @@ export class TelegramBotService {
             };
 
             // Broadcast to all connected clients
-            console.log(`[Telegram Bot] Broadcasting message from ${messageData.author}: "${messageData.content.substring(0, 50)}..."`);
+            // console.log(`[Telegram Bot] Broadcasting message from ${messageData.author}: "${messageData.content.substring(0, 50)}..."`);
             this.io.emit('new-message', messageData);
           }
         }
