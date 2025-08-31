@@ -95,8 +95,14 @@
           <img 
             src={message.avatarUrl} 
             alt={message.author}
-            class="w-14 h-14 rounded-full shadow-xl border-2 border-gray-600/30"
+            class="w-14 h-14 rounded-full shadow-xl border-2 border-gray-600/30 object-cover"
+            loading="lazy"
+            onerror="this.style.display='none'"
           />
+        {:else}
+          <div class="w-14 h-14 rounded-full shadow-xl border-2 border-gray-600/30 bg-gradient-to-br {platformGradient} flex items-center justify-center text-xl font-bold text-white">
+            {message.author.charAt(0).toUpperCase()}
+          </div>
         {/if}
         
         <div class="flex-1">

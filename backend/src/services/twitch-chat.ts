@@ -83,18 +83,24 @@ export class TwitchChatService {
               return;
             }
             
+            // Use the actual username (not display name) for avatar URL
+            const actualUsername = username.toLowerCase();
+            const displayName = tagDict['display-name'] || username;
+            
             const messageData = {
               id: `twitch-${tagDict['id'] || Date.now()}`,
               platform: 'twitch',
               platformMessageId: tagDict['id'] || String(Date.now()),
-              author: tagDict['display-name'] || username,
+              author: displayName,
               content: content,
-              avatarUrl: `https://unavatar.io/twitch/${username}`,
+              avatarUrl: `https://unavatar.io/twitch/${actualUsername}`,
               channelId: this.channel,
               channelName: this.channel,
               color: tagDict['color'] || null,
               timestamp: parseInt(tagDict['tmi-sent-ts']) || Date.now()
             };
+            
+            console.log(`[Twitch Chat] Avatar URL for ${actualUsername}: ${messageData.avatarUrl}`);
             
             // Broadcast to all connected clients
             console.log(`[Twitch Chat] Broadcasting message from ${messageData.author}: "${messageData.content.substring(0, 50)}..."`);
