@@ -76,6 +76,9 @@ export class TwitchChatService {
             const isRelayedMessage = content.includes('↩️ Replying to') || 
                                    content.includes('[Telegram]') || 
                                    content.includes('[Discord]') ||
+                                   content.includes('𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦') ||
+                                   content.includes('𝐃𝐢𝐬𝐜𝐨𝐫𝐝') ||
+                                   content.match(/^[🟦🔵💙🟢💚🔴❤️]\s*\[/) ||
                                    content.match(/^\[.+?\]\s+.+?:/);
             
             if (isRelayBot || isRelayedMessage) {
